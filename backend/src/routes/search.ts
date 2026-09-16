@@ -18,15 +18,15 @@ router.get(
         where: {
           userId,
           OR: [
-            { name: { contains: q, mode: "insensitive" } },
-            { company: { contains: q, mode: "insensitive" } },
-            { email: { contains: q, mode: "insensitive" } },
+            { name: { contains: q } },
+            { company: { contains: q } },
+            { email: { contains: q } },
           ],
         },
         take: 6,
       }),
-      prisma.project.findMany({ where: { userId, name: { contains: q, mode: "insensitive" } }, take: 6, include: { client: { select: { id: true, name: true } } } }),
-      prisma.task.findMany({ where: { userId, title: { contains: q, mode: "insensitive" } }, take: 6, include: { project: { select: { id: true, name: true } } } }),
+      prisma.project.findMany({ where: { userId, name: { contains: q } }, take: 6, include: { client: { select: { id: true, name: true } } } }),
+      prisma.task.findMany({ where: { userId, title: { contains: q } }, take: 6, include: { project: { select: { id: true, name: true } } } }),
     ]);
     return res.json({ success: true, data: { clients, projects, tasks } });
   }),

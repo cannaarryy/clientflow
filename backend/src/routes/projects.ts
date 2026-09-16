@@ -23,7 +23,7 @@ router.get(
     const status = typeof req.query.status === "string" ? req.query.status : "";
     const where: Record<string, unknown> = { userId };
     if (status && ["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED"].includes(status)) where.status = status;
-    if (search) where.name = { contains: search, mode: "insensitive" };
+    if (search) where.name = { contains: search };
     const projects = await prisma.project.findMany({
       where: where as never,
       orderBy: { updatedAt: "desc" },

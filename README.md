@@ -29,41 +29,44 @@ aplicación (`/app`) es la herramienta real: todo conectado a PostgreSQL mediant
 
 ### Requisitos
 - Node.js 20+ · npm 9+
-- PostgreSQL 15/16 (local o vía Docker)
+- Nada más: la base de datos es **SQLite** (un archivo `prisma/dev.db`, cero instalación).
+  El modelo es relacional y está listo para PostgreSQL (ver nota más abajo).
 
 ### Instalación
 ```bash
-# 1. Clonar y configurar entorno
-cp .env.example .env
-# Edita DATABASE_URL y JWT_SECRET (mín. 32 caracteres)
-
-# 2. Base de datos con Docker (recomendado)
-docker compose up -d db
-
-# 3. Instalar dependencias
+# 1. Instalar dependencias
 npm --prefix backend install
 npm --prefix frontend install
 
-# 4. Migraciones + seed demo
+# 2. Base de datos (SQLite — sin Docker ni contraseñas)
 npm --prefix backend run db:migrate
 npm --prefix backend run db:seed
 
-# 5. Arrancar (dos terminales)
+# 3. Arrancar (dos terminales)
 npm --prefix backend run dev      # API → http://localhost:4000
 npm --prefix frontend run dev     # Web → http://localhost:5173
 ```
+Los `.env` ya existen con valores de desarrollo (`DATABASE_URL="file:./dev.db"`).
+Cambia `JWT_SECRET` antes de cualquier uso serio.
 
 Cuenta demo (tras el seed): **demo@clientflow.io / Demo1234!**
 
 ### Variables de entorno
 | Variable | Descripción |
 |---|---|
-| `DATABASE_URL` | Conexión PostgreSQL |
+| `DATABASE_URL` | `file:./dev.db` (SQLite). Para Postgres: `postgresql://...` |
 | `JWT_SECRET` | Secreto JWT (≥32 chars, nunca en Git) |
 | `JWT_EXPIRES_IN` | Duración del token (def. `7d`) |
 | `PORT` | Puerto API (def. `4000`) |
 | `CORS_ORIGIN` | Origen permitido (def. `http://localhost:5173`) |
 | `COOKIE_SECURE` | `true` en producción HTTPS |
+
+### Nota: migrar a PostgreSQL
+El schema (`prisma/schema.prisma`) documenta la variante Postgres:
+cambia `provider` a `postgresql`, restaura enums nativos y `@db.Text`,
+apunta `DATABASE_URL` al servidor y ejecuta `db:migrate`. Las queries son
+Prisma puro (sin SQL crudo), así que no hay que tocar el backend.
+`docker-compose.yml` incluye un servicio Postgres listo para ese momento.
 
 ### API (resumen)
 ```
@@ -108,15 +111,11 @@ real tool — everything persisted in PostgreSQL through a REST API.
 
 ### Requirements
 - Node.js 20+ · npm 9+
-- PostgreSQL 15/16 (local or via Docker)
+- Nothing else: the database is **SQLite** (a `prisma/dev.db` file, zero setup).
+  The model is relational and Postgres-ready (see note below).
 
 ### Setup
 ```bash
-cp .env.example .env
-# Edit DATABASE_URL and JWT_SECRET (min. 32 chars)
-
-docker compose up -d db
-
 npm --prefix backend install
 npm --prefix frontend install
 
@@ -126,6 +125,8 @@ npm --prefix backend run db:seed
 npm --prefix backend run dev      # API → http://localhost:4000
 npm --prefix frontend run dev     # Web → http://localhost:5173
 ```
+Dev `.env` files already exist (`DATABASE_URL="file:./dev.db"`).
+Rotate `JWT_SECRET` before any serious use.
 
 Demo account (after seed): **demo@clientflow.io / Demo1234!**
 
@@ -135,8 +136,8 @@ clientflow/
 ├── frontend/src/{components,pages,layouts,hooks,services,types,utils}
 ├── backend/src/{config,lib,middleware,routes,schemas,utils}
 ├── backend/tests/          # vitest
-├── prisma/{schema.prisma,seed.ts}
-├── docker-compose.yml      # Postgres (+ optional app profile)
+├── prisma/{schema.prisma,seed.ts,migrations/,dev.db}
+├── docker-compose.yml      # optional Postgres for the future Postgres path
 ├── .env.example · README.md
 ```
 

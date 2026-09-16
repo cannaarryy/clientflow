@@ -9,3 +9,7 @@ coverage/
 Thumbs.db
 frontend/dist/
 backend/dist/
+
+# Environmental noise (no pnpm project at root)
+pnpm-lock.yaml
+

@@ -38,7 +38,7 @@ router.get(
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const where: Record<string, unknown> = { userId };
     if (status && ["TODO", "IN_PROGRESS", "DONE"].includes(status)) where.status = status;
-    if (search) where.title = { contains: search, mode: "insensitive" };
+    if (search) where.title = { contains: search };
     if (typeof req.query.projectId === "string" && req.query.projectId) where.projectId = req.query.projectId;
     if (typeof req.query.clientId === "string" && req.query.clientId) where.clientId = req.query.clientId;
     const tasks = await prisma.task.findMany({

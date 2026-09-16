@@ -1,38 +1,27 @@
 // clientflow/prisma/schema.prisma
-// ClientFlow v0.1 — PostgreSQL + Prisma
+// ClientFlow v0.1 — SQLite (zero-config local dev).
+//
+// NOTE on database choice: the domain model is fully relational and
+// Postgres-ready (see git history for the PostgreSQL variant). SQLite was
+// chosen as the default because it needs no server, no password and no
+// Docker — the app runs with a single file. To move to Postgres later:
+// change provider to "postgresql", restore native enums / @db.Text and
+// point DATABASE_URL at the server. All queries are plain Prisma, no raw SQL.
+//
+// SQLite has no native enums, so status/priority fields are Strings.
+// Allowed values are enforced in backend/src/schemas/*.ts via Zod:
+//   ClientStatus:  ACTIVE | INACTIVE | LEAD
+//   ProjectStatus: PLANNING | ACTIVE | ON_HOLD | COMPLETED
+//   Priority:      LOW | MEDIUM | HIGH
+//   TaskStatus:    TODO | IN_PROGRESS | DONE
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-}
-
-enum ClientStatus {
-  ACTIVE
-  INACTIVE
-  LEAD
-}
-
-enum ProjectStatus {
-  PLANNING
-  ACTIVE
-  ON_HOLD
-  COMPLETED
-}
-
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
-}
-
-enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  DONE
 }
 
 model User {
@@ -52,17 +41,17 @@ model User {
 }
 
 model Client {
-  id        String       @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   company   String?
   email     String?
   phone     String?
-  notes     String?      @db.Text
-  status    ClientStatus @default(ACTIVE)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  notes     String?
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   projects  Project[]
   tasks     Task[]
   notesList Note[]
@@ -73,19 +62,19 @@ model Client {
 }
 
 model Project {
-  id          String        @id @default(cuid())
+  id          String   @id @default(cuid())
   userId      String
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   clientId    String
-  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   name        String
-  description String?       @db.Text
-  status      ProjectStatus @default(PLANNING)
-  priority    Priority      @default(MEDIUM)
+  description String?
+  status      String   @default("PLANNING")
+  priority    String   @default("MEDIUM")
   startDate   DateTime?
   dueDate     DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   tasks       Task[]
   notesList   Note[]
 
@@ -95,20 +84,20 @@ model Project {
 }
 
 model Task {
-  id          String     @id @default(cuid())
+  id          String   @id @default(cuid())
   userId      String
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   projectId   String?
-  project     Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   clientId    String?
-  client      Client?    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client      Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   title       String
-  description String?    @db.Text
-  status      TaskStatus @default(TODO)
-  priority    Priority   @default(MEDIUM)
+  description String?
+  status      String   @default("TODO")
+  priority    String   @default("MEDIUM")
   dueDate     DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([userId])
   @@index([projectId])
@@ -125,7 +114,7 @@ model Note {
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   title     String?
-  content   String   @db.Text
+  content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

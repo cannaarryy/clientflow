@@ -20,9 +20,9 @@ router.get(
     if (status && ["ACTIVE", "INACTIVE", "LEAD"].includes(status)) where.status = status;
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { company: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
+        { name: { contains: search } },
+        { company: { contains: search } },
+        { email: { contains: search } },
       ];
     }
     const clients = await prisma.client.findMany({

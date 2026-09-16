@@ -1,3 +1,5 @@
+# NOTE: ClientFlow runs on SQLite by default — no Docker needed for local dev.
+# This file is kept for the future PostgreSQL path (see README "Nota: migrar a PostgreSQL").
 services:
   db:
     image: postgres:16-alpine
