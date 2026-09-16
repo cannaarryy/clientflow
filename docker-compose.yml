@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: clientflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clientflow
+      POSTGRES_PASSWORD: clientflow
+      POSTGRES_DB: clientflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - clientflow-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clientflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Optional: run the whole stack with docker
+  # Usage: docker compose --profile app up --build
+  api:
+    build: ./backend
+    container_name: clientflow-api
+    restart: unless-stopped
+    profiles: ["app"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://clientflow:clientflow@db:5432/clientflow?schema=public
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-please-32-chars-min}
+      PORT: 4000
+      CORS_ORIGIN: http://localhost:5173
+      NODE_ENV: production
+    ports:
+      - "4000:4000"
+    command: sh -c "npx prisma migrate deploy && node dist/index.js"
+
+  web:
+    build: ./frontend
+    container_name: clientflow-web
+    restart: unless-stopped
+    profiles: ["app"]
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
+
+volumes:
+  clientflow-pgdata:

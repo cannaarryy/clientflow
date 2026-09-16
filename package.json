@@ -1,0 +1,18 @@
+{
+  "name": "clientflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ClientFlow — manage clients, move work forward.",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "dev": "npm run dev --prefix backend",
+    "dev:all": "npm run dev --prefix backend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend"
+  },
+  "devDependencies": {
+    "prisma": "5.22.0"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0"
+  }
+}
