@@ -2,8 +2,10 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { requireAuth, type AuthRequest } from "../middleware/auth.js";
-import { createProjectSchema, updateProjectSchema } from "../schemas/project.js";
+import { createProjectSchema, updateProjectSchema, shareProjectSchema } from "../schemas/project.js";
 import { recordActivity } from "../utils/activity.js";
+import { emitEvent } from "../utils/events.js";
+import { computeHealth } from "../utils/health.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -50,6 +52,7 @@ router.post(
         priority: input.priority ?? "MEDIUM",
         startDate: toDate(input.startDate),
         dueDate: toDate(input.dueDate),
+        isShared: input.isShared ?? false,
       },
       include: { client: { select: { id: true, name: true, company: true } } },
     });
@@ -68,10 +71,13 @@ router.get(
         client: true,
         tasks: { orderBy: { createdAt: "desc" } },
         notesList: { orderBy: { createdAt: "desc" } },
+        comments: { orderBy: { createdAt: "asc" } },
+        requests: { orderBy: { createdAt: "desc" }, include: { client: { select: { id: true, name: true } } } },
       },
     });
     if (!project) return res.status(404).json({ success: false, message: "Project not found" });
-    return res.json({ success: true, data: { project } });
+    const health = computeHealth({ status: project.status, dueDate: project.dueDate, tasks: project.tasks });
+    return res.json({ success: true, data: { project, health } });
   }),
 );
 
@@ -96,10 +102,29 @@ router.patch(
         ...(input.clientId !== undefined ? { clientId: input.clientId } : {}),
         ...(input.startDate !== undefined ? { startDate: toDate(input.startDate) } : {}),
         ...(input.dueDate !== undefined ? { dueDate: toDate(input.dueDate) } : {}),
+        ...(input.isShared !== undefined ? { isShared: input.isShared } : {}),
       },
       include: { client: { select: { id: true, name: true, company: true } } },
     });
-    await recordActivity(userId!, "project.updated", `Project updated: ${project.name}`, "project", project.id);
+    if (input.status === "COMPLETED" && existing.status !== "COMPLETED") {
+      await emitEvent({ userId: userId!, type: "project.completed", message: `Project completed: ${project.name}`, entityType: "project", entityId: project.id, context: { projectId: project.id, clientId: project.clientId, title: project.name } });
+    } else {
+      await recordActivity(userId!, "project.updated", `Project updated: ${project.name}`, "project", project.id);
+    }
+    return res.json({ success: true, data: { project } });
+  }),
+);
+
+// PATCH /api/projects/:id/share — portal visibility toggle
+router.patch(
+  "/:id/share",
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthRequest;
+    const input = shareProjectSchema.parse(req.body);
+    const existing = await prisma.project.findFirst({ where: { id: req.params.id, userId } });
+    if (!existing) return res.status(404).json({ success: false, message: "Project not found" });
+    const project = await prisma.project.update({ where: { id: existing.id }, data: { isShared: input.isShared } });
+    await recordActivity(userId!, input.isShared ? "project.shared" : "project.unshared", `Project ${input.isShared ? "shared with client" : "unshared"}: ${project.name}`, "project", project.id);
     return res.json({ success: true, data: { project } });
   }),
 );

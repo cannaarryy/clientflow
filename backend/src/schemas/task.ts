@@ -14,6 +14,7 @@ export const createTaskSchema = z.object({
   dueDate: dateInput,
   projectId: optionalId,
   clientId: optionalId,
+  isShared: z.boolean().optional().default(false),
 });
 
 export const updateTaskSchema = createTaskSchema.partial();

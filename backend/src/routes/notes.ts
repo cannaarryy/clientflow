@@ -47,6 +47,7 @@ router.post(
         content: input.content.trim(),
         clientId: input.clientId,
         projectId: input.projectId,
+        visibility: input.visibility ?? "INTERNAL",
       },
       include: {
         client: { select: { id: true, name: true, company: true } },
@@ -70,6 +71,7 @@ router.patch(
       data: {
         ...(input.title !== undefined ? { title: input.title?.trim() || null } : {}),
         ...(input.content !== undefined ? { content: input.content.trim() } : {}),
+        ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
       },
     });
     return res.json({ success: true, data: { note } });

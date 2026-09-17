@@ -18,8 +18,13 @@ export const createProjectSchema = z.object({
   priority: priority.optional().default("MEDIUM"),
   startDate: dateInput,
   dueDate: dateInput,
+  isShared: z.boolean().optional().default(false),
 });
 
 export const updateProjectSchema = createProjectSchema.partial().omit({ clientId: true }).extend({
   clientId: z.string().min(1).optional(),
+});
+
+export const shareProjectSchema = z.object({
+  isShared: z.boolean(),
 });

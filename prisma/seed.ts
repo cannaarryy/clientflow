@@ -141,7 +141,7 @@ async function main() {
 
   // ── Notes ────────────────────────────────────────────
   await prisma.note.create({
-    data: { userId: user.id, clientId: nova.id, projectId: p1.id, title: "Kickoff takeaways", content: "Sofia wants a calm, premium feel. Avoid gradients. Keep the existing logo. Decision maker: Sofia + Leo (CTO)." },
+    data: { userId: user.id, clientId: nova.id, projectId: p1.id, title: "Kickoff takeaways", content: "Sofia wants a calm, premium feel. Avoid gradients. Keep the existing logo. Decision maker: Sofia + Leo (CTO).", visibility: "SHARED" },
   });
   await prisma.note.create({
     data: { userId: user.id, clientId: lumen.id, projectId: p2.id, title: "Demo notes", content: "Marcus loved the filter bar. Asked for CSV export + saved views. Next demo: Friday 11:00." },
@@ -151,6 +151,35 @@ async function main() {
   });
   await prisma.activity.create({ data: { userId: user.id, type: "note.added", message: "Note added: Kickoff takeaways" } });
   await prisma.activity.create({ data: { userId: user.id, type: "note.added", message: "Note added: Demo notes" } });
+
+  // ── v0.2 collaboration demo ──────────────────────────
+  // Portal enabled for Nova Studio with a FIXED demo token (DEMO ONLY —
+  // real invites use random tokens). Portal URL:
+  // http://localhost:5173/portal/demo-portal-nova-001
+  await prisma.client.update({
+    where: { id: nova.id },
+    data: { portalEnabled: true, portalToken: "demo-portal-nova-001" },
+  });
+  await prisma.project.update({ where: { id: p1.id }, data: { isShared: true } });
+  const sharedTask = await prisma.task.findFirst({ where: { userId: user.id, projectId: p1.id, status: "IN_PROGRESS" } });
+  if (sharedTask) await prisma.task.update({ where: { id: sharedTask.id }, data: { isShared: true } });
+
+  const req1 = await prisma.clientRequest.create({
+    data: { userId: user.id, clientId: nova.id, projectId: p1.id, title: "Homepage hero spacing", description: "Increase hero padding and update the CTA copy before Friday.", priority: "MEDIUM", status: "OPEN", createdBy: "CLIENT" },
+  });
+  await prisma.activity.create({ data: { userId: user.id, type: "request.created", message: `New request from Sofia Bennett: ${req1.title}`, entityType: "request", entityId: req1.id } });
+  await prisma.notification.create({ data: { userId: user.id, type: "request.created", message: `New request from Sofia Bennett: ${req1.title}`, entityType: "request", entityId: req1.id } });
+
+  await prisma.comment.create({
+    data: { userId: user.id, projectId: p1.id, authorName: "Alex Rivera", authorRole: "PRO", visibility: "SHARED", content: "First homepage direction is ready — Sofia, take a look when you can." },
+  });
+  await prisma.comment.create({
+    data: { userId: user.id, projectId: p1.id, authorName: "Sofia Bennett", authorRole: "CLIENT", visibility: "SHARED", content: "Love direction 2! Can we try it with the darker background?" },
+  });
+
+  await prisma.automationRule.create({
+    data: { userId: user.id, name: "Delivery review on completion", trigger: "project.completed", action: "create_task", config: JSON.stringify({ title: "Send delivery review & ask for testimonial", priority: "MEDIUM" }), enabled: true },
+  });
 
   console.log(`Seed complete. Demo user: ${email} / Demo1234!`);
 }

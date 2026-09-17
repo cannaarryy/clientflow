@@ -4,6 +4,7 @@ import { asyncHandler } from "../middleware/errorHandler.js";
 import { requireAuth, type AuthRequest } from "../middleware/auth.js";
 import { createTaskSchema, updateTaskSchema } from "../schemas/task.js";
 import { recordActivity } from "../utils/activity.js";
+import { emitEvent } from "../utils/events.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -70,6 +71,7 @@ router.post(
           dueDate: toDate(input.dueDate),
           projectId: scope.projectId,
           clientId: scope.clientId,
+          isShared: input.isShared ?? false,
         },
         include: {
           project: { select: { id: true, name: true } },
@@ -112,14 +114,16 @@ router.patch(
         ...(input.priority !== undefined ? { priority: input.priority } : {}),
         ...(input.dueDate !== undefined ? { dueDate: toDate(input.dueDate) } : {}),
         ...(scope ? { projectId: scope.projectId ?? null, clientId: scope.clientId ?? null } : {}),
+        ...(input.isShared !== undefined ? { isShared: input.isShared } : {}),
       },
       include: {
         project: { select: { id: true, name: true } },
         client: { select: { id: true, name: true, company: true } },
       },
     });
-    if (input.status === "DONE" && !wasDone) await recordActivity(userId!, "task.completed", `Task completed: ${task.title}`, "task", task.id);
-    else if (input.status !== undefined) await recordActivity(userId!, "task.updated", `Task updated: ${task.title}`, "task", task.id);
+    if (input.status === "DONE" && !wasDone) {
+      await emitEvent({ userId: userId!, type: "task.completed", message: `Task completed: ${task.title}`, entityType: "task", entityId: task.id, context: { projectId: task.projectId ?? undefined, clientId: task.clientId ?? undefined, title: task.title } });
+    } else if (input.status !== undefined) await recordActivity(userId!, "task.updated", `Task updated: ${task.title}`, "task", task.id);
     return res.json({ success: true, data: { task } });
   }),
 );

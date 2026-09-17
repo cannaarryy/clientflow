@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import type { KeyboardEventHandler, ReactNode } from "react";
 import { Link } from "react-router-dom";
-import type { ClientStatus, Priority, ProjectStatus, TaskStatus } from "../types/index.js";
+import type { ClientStatus, Health, Priority, ProjectStatus, RequestStatus, TaskStatus, Visibility } from "../types/index.js";
+import { useI18n } from "../i18n/LanguageProvider.js";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
@@ -28,12 +29,16 @@ const pill: Record<string, string> = {
   LOW: "bg-[#222]/60 text-[#A1A1A1] ring-[#333]",
   MEDIUM: "bg-amber-400/10 text-amber-300 ring-amber-400/20",
   HIGH: "bg-red-400/10 text-red-300 ring-red-400/20",
+  OPEN: "bg-sky-400/10 text-sky-300 ring-sky-400/20",
+  CONVERTED: "bg-emerald-400/10 text-emerald-300 ring-emerald-400/20",
+  DECLINED: "bg-[#222]/60 text-[#A1A1A1] ring-[#333]",
 };
 
-export function StatusBadge({ value }: { value: ClientStatus | ProjectStatus | TaskStatus | Priority }) {
-  const label = value.replace("_", " ");
+export function StatusBadge({ value }: { value: ClientStatus | ProjectStatus | TaskStatus | Priority | RequestStatus }) {
+  const { t } = useI18n();
+  const label = t(`st.${value}`);
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide ring-1 ${pill[value] ?? pill.TODO}`}>
+    <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide whitespace-nowrap ring-1 ${pill[value] ?? pill.TODO}`}>
       {label}
     </span>
   );
@@ -41,12 +46,74 @@ export function StatusBadge({ value }: { value: ClientStatus | ProjectStatus | T
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-[#A1A1A1]">{subtitle}</p>}
+        <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-sm text-[#A1A1A1]">{subtitle}</p>}
       </div>
       {action && <div className="flex items-center gap-2">{action}</div>}
+    </div>
+  );
+}
+
+const healthPill: Record<Health, string> = {
+  HEALTHY: "bg-emerald-400/10 text-emerald-300 ring-emerald-400/20",
+  AT_RISK: "bg-amber-400/10 text-amber-300 ring-amber-400/20",
+  BLOCKED: "bg-red-400/10 text-red-300 ring-red-400/20",
+  COMPLETED: "bg-sky-400/10 text-sky-300 ring-sky-400/20",
+};
+
+export function HealthBadge({ value }: { value: Health }) {
+  const { t } = useI18n();
+  return (
+    <span className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${healthPill[value]}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {t(`health.${value}`)}
+    </span>
+  );
+}
+
+export function VisibilityBadge({ value }: { value: Visibility }) {
+  const { t } = useI18n();
+  return (
+    <span
+      title={t(value === "SHARED" ? "vis.sharedHint" : "vis.internalHint")}
+      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${
+        value === "SHARED" ? "bg-[#7C6CFF]/10 text-[#B9B0FF] ring-[#7C6CFF]/30" : "bg-[#1a1a1a] text-[#737373] ring-[#2c2c2c]"
+      }`}
+    >
+      {t(`vis.${value}`)}
+    </span>
+  );
+}
+
+export function Tabs({ tabs, active, onChange }: { tabs: Array<{ id: string; label: string; count?: number }>; active: string; onChange: (id: string) => void }) {
+  return (
+    <div className="mb-4 flex gap-1 overflow-x-auto border-b border-[#1c1c1c]" role="tablist">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          role="tab"
+          aria-selected={active === tab.id}
+          onClick={() => onChange(tab.id)}
+          className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition ${
+            active === tab.id ? "border-[#7C6CFF] font-medium text-white" : "border-transparent text-[#737373] hover:text-[#A1A1A1]"
+          }`}
+        >
+          {tab.label}
+          {tab.count !== undefined && (
+            <span className="rounded-full bg-[#1c1c1c] px-1.5 py-0.5 font-mono text-[10px] text-[#A1A1A1]">{tab.count}</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function ProgressBar({ value }: { value: number }) {
+  return (
+    <div className="h-1.5 overflow-hidden rounded-full bg-[#1c1c1c]">
+      <div className="h-full rounded-full bg-[#7C6CFF] transition-all" style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
     </div>
   );
 }
@@ -69,18 +136,28 @@ export function EmptyState({ title, hint, action, icon }: { title: string; hint?
 }
 
 export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
+  const { t } = useI18n();
   if (!open) return null;
+  const onKey: KeyboardEventHandler<HTMLDivElement> = (e) => {
+    if (e.key === "Escape") onClose();
+  };
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-6" onMouseDown={onClose}>
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+      onMouseDown={onClose}
+      onKeyDown={onKey}
+      role="presentation"
+    >
       <div
-        className={`anim-modal w-full rounded-t-2xl border border-[#262626] bg-[#0D0D0D] p-5 sm:rounded-2xl sm:p-6 ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}
+        className={`anim-modal max-h-[calc(100dvh-1rem)] w-full overflow-y-auto rounded-t-2xl border border-[#262626] bg-[#0D0D0D] p-5 sm:rounded-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6 ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
+        aria-label={title}
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-white">{title}</h2>
-          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-[#A1A1A1] hover:bg-[#181818] hover:text-white" aria-label="Close">
+          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-[#A1A1A1] hover:bg-[#181818] hover:text-white" aria-label={t("common.close")}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
           </button>
         </div>
@@ -92,11 +169,11 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
 
 export function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
-    <div>
-      <label className="label">{label}</label>
+    <label className="block">
+      <span className="label">{label}</span>
       {children}
       {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
-    </div>
+    </label>
   );
 }
 

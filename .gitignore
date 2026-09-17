@@ -13,3 +13,7 @@ backend/dist/
 # Environmental noise (no pnpm project at root)
 pnpm-lock.yaml
 
+
+# Dev logs
+*.log
+

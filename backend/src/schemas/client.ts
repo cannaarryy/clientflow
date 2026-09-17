@@ -17,3 +17,7 @@ export const clientQuerySchema = z.object({
   search: z.string().max(120).optional(),
   status: z.string().optional(),
 });
+
+export const portalSchema = z.object({
+  enabled: z.boolean(),
+});

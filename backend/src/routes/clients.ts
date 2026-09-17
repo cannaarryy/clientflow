@@ -2,8 +2,9 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { requireAuth, type AuthRequest } from "../middleware/auth.js";
-import { createClientSchema, updateClientSchema } from "../schemas/client.js";
+import { createClientSchema, updateClientSchema, portalSchema } from "../schemas/client.js";
 import { recordActivity } from "../utils/activity.js";
+import crypto from "crypto";
 
 const router = Router();
 router.use(requireAuth);
@@ -65,6 +66,7 @@ router.get(
         projects: { orderBy: { updatedAt: "desc" } },
         tasks: { orderBy: { updatedAt: "desc" }, take: 20 },
         notesList: { orderBy: { createdAt: "desc" }, take: 20 },
+        requests: { orderBy: { createdAt: "desc" }, take: 10, include: { project: { select: { id: true, name: true } } } },
       },
     });
     if (!client) return res.status(404).json({ success: false, message: "Client not found" });
@@ -97,6 +99,45 @@ router.patch(
     });
     await recordActivity(userId!, "client.updated", `Client updated: ${client.name}`, "client", client.id);
     return res.json({ success: true, data: { client } });
+  }),
+);
+
+// PATCH /api/clients/:id/portal — enable/disable the Client Portal (magic link)
+router.patch(
+  "/:id/portal",
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthRequest;
+    const input = portalSchema.parse(req.body);
+    const existing = await prisma.client.findFirst({ where: { id: req.params.id, userId } });
+    if (!existing) return res.status(404).json({ success: false, message: "Client not found" });
+    const client = await prisma.client.update({
+      where: { id: existing.id },
+      data: {
+        portalEnabled: input.enabled,
+        // Issue a token on first enable; keep the stable link afterwards.
+        portalToken: input.enabled ? (existing.portalToken ?? crypto.randomBytes(32).toString("hex")) : existing.portalToken,
+      },
+      select: { id: true, portalEnabled: true, portalToken: true },
+    });
+    await recordActivity(userId!, input.enabled ? "portal.enabled" : "portal.disabled", `Portal ${input.enabled ? "enabled" : "disabled"} for ${existing.name}`, "client", existing.id);
+    return res.json({ success: true, data: { portal: client } });
+  }),
+);
+
+// POST /api/clients/:id/portal/regenerate — rotate the magic link
+router.post(
+  "/:id/portal/regenerate",
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthRequest;
+    const existing = await prisma.client.findFirst({ where: { id: req.params.id, userId } });
+    if (!existing) return res.status(404).json({ success: false, message: "Client not found" });
+    const client = await prisma.client.update({
+      where: { id: existing.id },
+      data: { portalToken: crypto.randomBytes(32).toString("hex"), portalEnabled: true },
+      select: { id: true, portalEnabled: true, portalToken: true },
+    });
+    await recordActivity(userId!, "portal.regenerated", `Portal link regenerated for ${existing.name}`, "client", existing.id);
+    return res.json({ success: true, data: { portal: client } });
   }),
 );
 

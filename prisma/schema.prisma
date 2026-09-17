@@ -1,5 +1,22 @@
 // clientflow/prisma/schema.prisma
-// ClientFlow v0.1 — SQLite (zero-config local dev).
+// ClientFlow v0.2 — SQLite (zero-config local dev).
+//
+// NOTE on database choice: the domain model is fully relational and
+// Postgres-ready (see git history for the PostgreSQL variant). SQLite was
+// chosen as the default because it needs no server, no password and no
+// Docker — the app runs with a single file. To move to Postgres later:
+// change provider to "postgresql", restore native enums / @db.Text and
+// point DATABASE_URL at the server. All queries are plain Prisma, no raw SQL.
+//
+// SQLite has no native enums, so status/priority fields are Strings.
+// Allowed values are enforced in backend/src/schemas/*.ts via Zod:
+//   ClientStatus:  ACTIVE | INACTIVE | LEAD
+//   ProjectStatus: PLANNING | ACTIVE | ON_HOLD | COMPLETED
+//   Priority:      LOW | MEDIUM | HIGH
+//   TaskStatus:    TODO | IN_PROGRESS | DONE
+//   RequestStatus: OPEN | IN_PROGRESS | CONVERTED | DECLINED
+//   Visibility:    INTERNAL | SHARED
+//   AuthorRole:    PRO | CLIENT
 //
 // NOTE on database choice: the domain model is fully relational and
 // Postgres-ready (see git history for the PostgreSQL variant). SQLite was
@@ -36,6 +53,10 @@ model User {
   tasks        Task[]
   notes        Note[]
   activities   Activity[]
+  requests     ClientRequest[]
+  comments     Comment[]
+  notifications Notification[]
+  automations  AutomationRule[]
 
   @@index([email])
 }
@@ -55,6 +76,10 @@ model Client {
   projects  Project[]
   tasks     Task[]
   notesList Note[]
+  requests  ClientRequest[]
+  // Client Portal (v0.2): magic-link access scoped to this client only.
+  portalEnabled Boolean @default(false)
+  portalToken   String? @unique
 
   @@index([userId])
   @@index([userId, status])
@@ -77,6 +102,10 @@ model Project {
   updatedAt   DateTime @updatedAt
   tasks       Task[]
   notesList   Note[]
+  requests    ClientRequest[]
+  comments    Comment[]
+  // Visible in the Client Portal when true (professional controls this).
+  isShared    Boolean  @default(false)
 
   @@index([userId])
   @@index([clientId])
@@ -98,6 +127,9 @@ model Task {
   dueDate     DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  comments    Comment[]
+  // Visible in the Client Portal only when true AND the parent project is shared.
+  isShared    Boolean  @default(false)
 
   @@index([userId])
   @@index([projectId])
@@ -117,6 +149,8 @@ model Note {
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // INTERNAL = professional only. SHARED = also visible in the Client Portal.
+  visibility String @default("INTERNAL")
 
   @@index([userId])
   @@index([clientId])
@@ -135,4 +169,89 @@ model Activity {
 
   @@index([userId])
   @@index([userId, createdAt])
+}
+
+// ── v0.2: collaboration ──────────────────────────────────
+
+model ClientRequest {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  priority    String   @default("MEDIUM")
+  status      String   @default("OPEN")
+  // CLIENT = created from the portal, PRO = created by the professional.
+  createdBy   String   @default("PRO")
+  // Task created when this request is converted (Request → Task flow).
+  taskId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  comments    Comment[]
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([userId, status])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId     String?
+  task       Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  requestId  String?
+  request    ClientRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorName String
+  authorRole String   @default("PRO")
+  // INTERNAL = professional only. SHARED = visible in the Client Portal.
+  visibility String   @default("INTERNAL")
+  content    String
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([taskId])
+  @@index([requestId])
+}
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  message    String
+  entityType String?
+  entityId   String?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([userId, createdAt])
+}
+
+model AutomationRule {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  // Trigger: project.completed | task.completed | task.overdue | request.created
+  trigger   String
+  // Action: create_task | create_activity | create_notification
+  action    String
+  // JSON config, e.g. {"title":"Follow up","priority":"MEDIUM"}
+  config    String    @default("{}")
+  enabled   Boolean   @default(true)
+  lastRunAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([userId, trigger])
 }
