@@ -79,7 +79,7 @@ class LocalHeuristicProvider implements IntelligenceProvider {
     });
     if (!project) return null;
     const h = computeHealth({ status: project.status, dueDate: project.dueDate, tasks: project.tasks });
-    const next = project.tasks.find((t) => t.status !== "DONE" && t.dueDate);
+    const next = project.tasks.find((t: { status: string; dueDate?: Date | string | null }) => t.status !== "DONE" && t.dueDate);
     const highlights: string[] = [];
     highlights.push(`${h.done}/${h.total} tasks done (${h.progress}%).`);
     if (h.overdue > 0) highlights.push(`${h.overdue} overdue — clear these first.`);

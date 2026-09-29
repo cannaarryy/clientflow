@@ -71,7 +71,7 @@ router.get(
       getProvider().nextActions(userId!),
     ]);
 
-    const projectHealth = projectsRaw.map((p) => ({
+    const projectHealth = projectsRaw.map((p: typeof projectsRaw[0]) => ({
       id: p.id,
       name: p.name,
       status: p.status,
@@ -82,8 +82,8 @@ router.get(
 
     // Upcoming deadlines: dated projects + dated open tasks, merged & sorted.
     const deadlines = [
-      ...projectsRaw.filter((p) => p.dueDate && p.dueDate >= now).map((p) => ({ kind: "project" as const, id: p.id, title: p.name, dueDate: p.dueDate!.toISOString() })),
-      ...upcomingTasks.filter((t) => t.dueDate).map((t) => ({ kind: "task" as const, id: t.id, title: t.title, dueDate: (t.dueDate as Date).toISOString() })),
+      ...projectsRaw.filter((p: typeof projectsRaw[0]) => p.dueDate && p.dueDate >= now).map((p: typeof projectsRaw[0]) => ({ kind: "project" as const, id: p.id, title: p.name, dueDate: p.dueDate!.toISOString() })),
+      ...upcomingTasks.filter((t: typeof upcomingTasks[0]) => t.dueDate).map((t: typeof upcomingTasks[0]) => ({ kind: "task" as const, id: t.id, title: t.title, dueDate: (t.dueDate as Date).toISOString() })),
     ]
       .sort((a, b) => +new Date(a.dueDate) - +new Date(b.dueDate))
       .slice(0, 6);

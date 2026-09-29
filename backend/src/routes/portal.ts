@@ -50,7 +50,7 @@ router.get(
       orderBy: { updatedAt: "desc" },
       include: { tasks: { where: { isShared: true }, orderBy: { createdAt: "asc" } } },
     });
-    const sharedProjectIds = projects.map((p) => p.id);
+    const sharedProjectIds = projects.map((p: { id: string }) => p.id);
     const [notes, comments, requests, activity] = await Promise.all([
       prisma.note.findMany({
         where: { userId, clientId, visibility: "SHARED", OR: [{ projectId: null }, { projectId: { in: sharedProjectIds } }] },
@@ -78,15 +78,15 @@ router.get(
       }),
     ]);
 
-    const projectsWithHealth = projects.map((p) => ({
+    const projectsWithHealth = projects.map((p: { id: string; status: string; dueDate?: Date | null; tasks: Array<{ status: string; priority?: string | null; dueDate?: Date | string | null }> }) => ({
       ...p,
       health: computeHealth({ status: p.status, dueDate: p.dueDate, tasks: p.tasks }),
     }));
 
     // Comments on requests of this client only (the query above may include
     // shared request comments workspace-wide — scope them down).
-    const requestIds = new Set(requests.map((r) => r.id));
-    const scopedComments = comments.filter((c) => (c.requestId ? requestIds.has(c.requestId) : true));
+    const requestIds = new Set(requests.map((r: { id: string }) => r.id));
+    const scopedComments = comments.filter((c: { requestId?: string | null }) => (c.requestId ? requestIds.has(c.requestId) : true));
 
     return res.json({
       success: true,

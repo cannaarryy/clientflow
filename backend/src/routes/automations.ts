@@ -20,7 +20,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const { userId } = req as AuthRequest;
     const rules = await prisma.automationRule.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
-    return res.json({ success: true, data: { rules: rules.map((r) => ({ ...r, config: safeParse(r.config) })) } });
+    return res.json({ success: true, data: { rules: rules.map((r: { config: string }) => ({ ...r, config: safeParse(r.config) })) } });
   }),
 );
 
