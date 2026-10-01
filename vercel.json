@@ -22,6 +22,6 @@
     }
   ],
   "env": {
-    "VITE_API_URL": "@clientflow-api-url"
+    "VITE_API_URL": "$VITE_API_URL"
   }
 }
