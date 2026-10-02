@@ -1,7 +1,7 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
-import { requireAuth, type AuthRequest } from "../middleware/auth.js";
+import { requireAuth, type AuthRequest, requirePermission } from "../middleware/auth.js";
 import { createProjectSchema, updateProjectSchema, shareProjectSchema } from "../schemas/project.js";
 import { recordActivity } from "../utils/activity.js";
 import { emitEvent } from "../utils/events.js";
@@ -10,6 +10,10 @@ import { computeHealth } from "../utils/health.js";
 const router = Router();
 router.use(requireAuth);
 
+const projectsRead: RequestHandler = requirePermission("projects:read");
+const projectsWrite: RequestHandler = requirePermission("projects:write");
+const projectsDelete: RequestHandler = requirePermission("projects:delete");
+
 const toDate = (v: unknown): Date | undefined => {
   if (typeof v !== "string" || !v) return undefined;
   const d = new Date(v);
@@ -17,13 +21,18 @@ const toDate = (v: unknown): Date | undefined => {
 };
 const clean = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 
+function orgWhere(req: AuthRequest, extra: Record<string, unknown> = {}) {
+  const base: Record<string, unknown> = { organizationId: req.organizationId };
+  return { ...base, ...extra };
+}
+
 router.get(
   "/",
+  projectsRead,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const status = typeof req.query.status === "string" ? req.query.status : "";
-    const where: Record<string, unknown> = { userId };
+    const where = orgWhere(req);
     if (status && ["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED"].includes(status)) where.status = status;
     if (search) where.name = { contains: search };
     const projects = await prisma.project.findMany({
@@ -37,14 +46,16 @@ router.get(
 
 router.post(
   "/",
+  projectsWrite,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
+    const { userId, organizationId } = req as AuthRequest;
     const input = createProjectSchema.parse(req.body);
-    const client = await prisma.client.findFirst({ where: { id: input.clientId, userId } });
+    const client = await prisma.client.findFirst({ where: { id: input.clientId, organizationId } });
     if (!client) return res.status(400).json({ success: false, message: "Client not found" });
     const project = await prisma.project.create({
       data: {
         userId: userId!,
+        organizationId,
         clientId: client.id,
         name: input.name.trim(),
         description: (clean(input.description) as string | undefined)?.trim(),
@@ -63,10 +74,11 @@ router.post(
 
 router.get(
   "/:id",
+  projectsRead,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
+    const { organizationId } = req as AuthRequest;
     const project = await prisma.project.findFirst({
-      where: { id: req.params.id, userId },
+      where: { id: req.params.id, organizationId },
       include: {
         client: true,
         tasks: { orderBy: { createdAt: "desc" } },
@@ -83,13 +95,14 @@ router.get(
 
 router.patch(
   "/:id",
+  projectsWrite,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
+    const { userId, organizationId } = req as AuthRequest;
     const input = updateProjectSchema.parse(req.body);
-    const existing = await prisma.project.findFirst({ where: { id: req.params.id, userId } });
+    const existing = await prisma.project.findFirst({ where: { id: req.params.id, organizationId } });
     if (!existing) return res.status(404).json({ success: false, message: "Project not found" });
     if (input.clientId) {
-      const client = await prisma.client.findFirst({ where: { id: input.clientId, userId } });
+      const client = await prisma.client.findFirst({ where: { id: input.clientId, organizationId } });
       if (!client) return res.status(400).json({ success: false, message: "Client not found" });
     }
     const project = await prisma.project.update({
@@ -118,10 +131,11 @@ router.patch(
 // PATCH /api/projects/:id/share — portal visibility toggle
 router.patch(
   "/:id/share",
+  projectsWrite,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
+    const { userId, organizationId } = req as AuthRequest;
     const input = shareProjectSchema.parse(req.body);
-    const existing = await prisma.project.findFirst({ where: { id: req.params.id, userId } });
+    const existing = await prisma.project.findFirst({ where: { id: req.params.id, organizationId } });
     if (!existing) return res.status(404).json({ success: false, message: "Project not found" });
     const project = await prisma.project.update({ where: { id: existing.id }, data: { isShared: input.isShared } });
     await recordActivity(userId!, input.isShared ? "project.shared" : "project.unshared", `Project ${input.isShared ? "shared with client" : "unshared"}: ${project.name}`, "project", project.id);
@@ -131,9 +145,10 @@ router.patch(
 
 router.delete(
   "/:id",
+  projectsDelete,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
-    const existing = await prisma.project.findFirst({ where: { id: req.params.id, userId } });
+    const { userId, organizationId } = req as AuthRequest;
+    const existing = await prisma.project.findFirst({ where: { id: req.params.id, organizationId } });
     if (!existing) return res.status(404).json({ success: false, message: "Project not found" });
     await prisma.project.delete({ where: { id: existing.id } });
     await recordActivity(userId!, "project.deleted", `Project deleted: ${existing.name}`);

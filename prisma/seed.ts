@@ -14,27 +14,48 @@ async function main() {
   const email = "demo@clientflow.io";
   const passwordHash = await bcrypt.hash("Demo1234!", 10);
 
+  // ── Organization & Membership ──────────────────────────
+  const org = await prisma.organization.upsert({
+    where: { slug: "demo-org" },
+    update: {},
+    create: {
+      name: "Demo Organization",
+      slug: "demo-org",
+      isDemo: true,
+    },
+  });
+
   const user = await prisma.user.upsert({
     where: { email },
-    update: {},
-    create: { email, name: "Alex Rivera", passwordHash },
+    update: { organizationId: org.id },
+    create: { email, name: "Alex Rivera", passwordHash, organizationId: org.id },
+  });
+
+  await prisma.membership.upsert({
+    where: { userId_organizationId: { userId: user.id, organizationId: org.id } },
+    update: { role: "OWNER" },
+    create: { userId: user.id, organizationId: org.id, role: "OWNER" },
   });
 
   // Clean previous demo data for idempotent seeds
-  await prisma.activity.deleteMany({ where: { userId: user.id } });
-  await prisma.note.deleteMany({ where: { userId: user.id } });
-  await prisma.task.deleteMany({ where: { userId: user.id } });
-  await prisma.project.deleteMany({ where: { userId: user.id } });
-  await prisma.client.deleteMany({ where: { userId: user.id } });
+  await prisma.activity.deleteMany({ where: { organizationId: org.id } });
+  await prisma.notification.deleteMany({ where: { organizationId: org.id } });
+  await prisma.automationRule.deleteMany({ where: { organizationId: org.id } });
+  await prisma.comment.deleteMany({ where: { organizationId: org.id } });
+  await prisma.clientRequest.deleteMany({ where: { organizationId: org.id } });
+  await prisma.task.deleteMany({ where: { organizationId: org.id } });
+  await prisma.note.deleteMany({ where: { organizationId: org.id } });
+  await prisma.project.deleteMany({ where: { organizationId: org.id } });
+  await prisma.client.deleteMany({ where: { organizationId: org.id } });
 
   const log = async (type: string, message: string, entityType?: string, entityId?: string) => {
-    await prisma.activity.create({ data: { userId: user.id, type, message, entityType, entityId } });
+    await prisma.activity.create({ data: { userId: user.id, organizationId: org.id, type, message, entityType, entityId } });
   };
 
   // ── Clients ──────────────────────────────────────────
   const nova = await prisma.client.create({
     data: {
-      userId: user.id, name: "Sofia Bennett", company: "Nova Studio",
+      userId: user.id, organizationId: org.id, name: "Sofia Bennett", company: "Nova Studio",
       email: "sofia@novastudio.co", phone: "+1 415 555 0132",
       status: "ACTIVE", notes: "Brand + web client. Prefers async updates on Fridays.",
     },
@@ -43,7 +64,7 @@ async function main() {
 
   const lumen = await prisma.client.create({
     data: {
-      userId: user.id, name: "Marcus Chen", company: "Lumen Analytics",
+      userId: user.id, organizationId: org.id, name: "Marcus Chen", company: "Lumen Analytics",
       email: "m.chen@lumenanalytics.io", phone: "+1 212 555 0188",
       status: "ACTIVE", notes: "SaaS dashboard project. Wants weekly demos.",
     },
@@ -52,7 +73,7 @@ async function main() {
 
   const atlas = await prisma.client.create({
     data: {
-      userId: user.id, name: "Elena Petrova", company: "Atlas Legal",
+      userId: user.id, organizationId: org.id, name: "Elena Petrova", company: "Atlas Legal",
       email: "elena@atlaslegal.com", phone: "+34 600 123 456",
       status: "LEAD", notes: "Discovery call done. Waiting for proposal approval.",
     },
@@ -61,7 +82,7 @@ async function main() {
 
   const verde = await prisma.client.create({
     data: {
-      userId: user.id, name: "Diego Fuentes", company: "Verde Coffee Co.",
+      userId: user.id, organizationId: org.id, name: "Diego Fuentes", company: "Verde Coffee Co.",
       email: "diego@verdecoffee.com", phone: "+52 55 1234 5678",
       status: "INACTIVE", notes: "One-off menu redesign. Paused until Q4.",
     },
@@ -71,7 +92,7 @@ async function main() {
   // ── Projects ─────────────────────────────────────────
   const p1 = await prisma.project.create({
     data: {
-      userId: user.id, clientId: nova.id, name: "Nova Studio — Website Redesign",
+      userId: user.id, organizationId: org.id, clientId: nova.id, name: "Nova Studio — Website Redesign",
       description: "Full marketing site redesign: IA, UI kit, Webflow-ready handoff.",
       status: "ACTIVE", priority: "HIGH",
       startDate: new Date("2026-08-10"), dueDate: new Date("2026-10-15"),
@@ -81,7 +102,7 @@ async function main() {
 
   const p2 = await prisma.project.create({
     data: {
-      userId: user.id, clientId: lumen.id, name: "Lumen — Analytics Dashboard",
+      userId: user.id, organizationId: org.id, clientId: lumen.id, name: "Lumen — Analytics Dashboard",
       description: "Customer-facing analytics dashboard: charts, filters, exports.",
       status: "ACTIVE", priority: "HIGH",
       startDate: new Date("2026-08-25"), dueDate: new Date("2026-11-01"),
@@ -91,7 +112,7 @@ async function main() {
 
   const p3 = await prisma.project.create({
     data: {
-      userId: user.id, clientId: atlas.id, name: "Atlas — Proposal & Discovery",
+      userId: user.id, organizationId: org.id, clientId: atlas.id, name: "Atlas — Proposal & Discovery",
       description: "Scope the client portal: requirements, estimate, proposal doc.",
       status: "PLANNING", priority: "MEDIUM",
       startDate: new Date("2026-09-05"), dueDate: new Date("2026-09-30"),
@@ -101,7 +122,7 @@ async function main() {
 
   const p4 = await prisma.project.create({
     data: {
-      userId: user.id, clientId: verde.id, name: "Verde — Menu Redesign",
+      userId: user.id, organizationId: org.id, clientId: verde.id, name: "Verde — Menu Redesign",
       description: "Print + digital menu refresh. On hold until Q4.",
       status: "ON_HOLD", priority: "LOW",
       startDate: new Date("2026-06-01"), dueDate: new Date("2026-12-01"),
@@ -130,7 +151,7 @@ async function main() {
     dueDate.setDate(dueDate.getDate() + t.dueInDays);
     const created = await prisma.task.create({
       data: {
-        userId: user.id, title: t.title, description: t.description,
+        userId: user.id, organizationId: org.id, title: t.title, description: t.description,
         status: t.status, priority: t.priority, dueDate,
         projectId: t.projectId, clientId: t.clientId,
       },
@@ -141,44 +162,48 @@ async function main() {
 
   // ── Notes ────────────────────────────────────────────
   await prisma.note.create({
-    data: { userId: user.id, clientId: nova.id, projectId: p1.id, title: "Kickoff takeaways", content: "Sofia wants a calm, premium feel. Avoid gradients. Keep the existing logo. Decision maker: Sofia + Leo (CTO).", visibility: "SHARED" },
+    data: { userId: user.id, organizationId: org.id, clientId: nova.id, projectId: p1.id, title: "Kickoff takeaways", content: "Sofia wants a calm, premium feel. Avoid gradients. Keep the existing logo. Decision maker: Sofia + Leo (CTO).", visibility: "SHARED" },
   });
   await prisma.note.create({
-    data: { userId: user.id, clientId: lumen.id, projectId: p2.id, title: "Demo notes", content: "Marcus loved the filter bar. Asked for CSV export + saved views. Next demo: Friday 11:00." },
+    data: { userId: user.id, organizationId: org.id, clientId: lumen.id, projectId: p2.id, title: "Demo notes", content: "Marcus loved the filter bar. Asked for CSV export + saved views. Next demo: Friday 11:00." },
   });
   await prisma.note.create({
-    data: { userId: user.id, clientId: atlas.id, title: "Discovery call", content: "Elena needs a client portal for case tracking. Budget approved for phase 1. Send proposal before month-end." },
+    data: { userId: user.id, organizationId: org.id, clientId: atlas.id, title: "Discovery call", content: "Elena needs a client portal for case tracking. Budget approved for phase 1. Send proposal before month-end." },
   });
-  await prisma.activity.create({ data: { userId: user.id, type: "note.added", message: "Note added: Kickoff takeaways" } });
-  await prisma.activity.create({ data: { userId: user.id, type: "note.added", message: "Note added: Demo notes" } });
+  await prisma.activity.create({ data: { userId: user.id, organizationId: org.id, type: "note.added", message: "Note added: Kickoff takeaways" } });
+  await prisma.activity.create({ data: { userId: user.id, organizationId: org.id, type: "note.added", message: "Note added: Demo notes" } });
 
   // ── v0.2 collaboration demo ──────────────────────────
   // Portal enabled for Nova Studio with a FIXED demo token (DEMO ONLY —
   // real invites use random tokens). Portal URL:
   // http://localhost:5173/portal/demo-portal-nova-001
+  await prisma.client.updateMany({
+    where: { portalToken: "demo-portal-nova-001" },
+    data: { portalToken: null },
+  });
   await prisma.client.update({
     where: { id: nova.id },
     data: { portalEnabled: true, portalToken: "demo-portal-nova-001" },
   });
   await prisma.project.update({ where: { id: p1.id }, data: { isShared: true } });
-  const sharedTask = await prisma.task.findFirst({ where: { userId: user.id, projectId: p1.id, status: "IN_PROGRESS" } });
+  const sharedTask = await prisma.task.findFirst({ where: { userId: user.id, organizationId: org.id, projectId: p1.id, status: "IN_PROGRESS" } });
   if (sharedTask) await prisma.task.update({ where: { id: sharedTask.id }, data: { isShared: true } });
 
   const req1 = await prisma.clientRequest.create({
-    data: { userId: user.id, clientId: nova.id, projectId: p1.id, title: "Homepage hero spacing", description: "Increase hero padding and update the CTA copy before Friday.", priority: "MEDIUM", status: "OPEN", createdBy: "CLIENT" },
+    data: { userId: user.id, organizationId: org.id, clientId: nova.id, projectId: p1.id, title: "Homepage hero spacing", description: "Increase hero padding and update the CTA copy before Friday.", priority: "MEDIUM", status: "OPEN", createdBy: "CLIENT" },
   });
-  await prisma.activity.create({ data: { userId: user.id, type: "request.created", message: `New request from Sofia Bennett: ${req1.title}`, entityType: "request", entityId: req1.id } });
-  await prisma.notification.create({ data: { userId: user.id, type: "request.created", message: `New request from Sofia Bennett: ${req1.title}`, entityType: "request", entityId: req1.id } });
+  await prisma.activity.create({ data: { userId: user.id, organizationId: org.id, type: "request.created", message: `New request from Sofia Bennett: ${req1.title}`, entityType: "request", entityId: req1.id } });
+  await prisma.notification.create({ data: { userId: user.id, organizationId: org.id, type: "request.created", message: `New request from Sofia Bennett: ${req1.title}`, entityType: "request", entityId: req1.id } });
 
   await prisma.comment.create({
-    data: { userId: user.id, projectId: p1.id, authorName: "Alex Rivera", authorRole: "PRO", visibility: "SHARED", content: "First homepage direction is ready — Sofia, take a look when you can." },
+    data: { userId: user.id, organizationId: org.id, projectId: p1.id, authorName: "Alex Rivera", authorRole: "PRO", visibility: "SHARED", content: "First homepage direction is ready — Sofia, take a look when you can." },
   });
   await prisma.comment.create({
-    data: { userId: user.id, projectId: p1.id, authorName: "Sofia Bennett", authorRole: "CLIENT", visibility: "SHARED", content: "Love direction 2! Can we try it with the darker background?" },
+    data: { userId: user.id, organizationId: org.id, projectId: p1.id, authorName: "Sofia Bennett", authorRole: "CLIENT", visibility: "SHARED", content: "Love direction 2! Can we try it with the darker background?" },
   });
 
   await prisma.automationRule.create({
-    data: { userId: user.id, name: "Delivery review on completion", trigger: "project.completed", action: "create_task", config: JSON.stringify({ title: "Send delivery review & ask for testimonial", priority: "MEDIUM" }), enabled: true },
+    data: { userId: user.id, organizationId: org.id, name: "Delivery review on completion", trigger: "project.completed", action: "create_task", config: JSON.stringify({ title: "Send delivery review & ask for testimonial", priority: "MEDIUM" }), enabled: true },
   });
 
   console.log(`Seed complete. Demo user: ${email} / Demo1234!`);

@@ -1,20 +1,29 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
-import { requireAuth, type AuthRequest } from "../middleware/auth.js";
+import { requireAuth, type AuthRequest, requirePermission } from "../middleware/auth.js";
 import { createRequestSchema, updateRequestSchema } from "../schemas/request.js";
 import { emitEvent } from "../utils/events.js";
 
 const router = Router();
 router.use(requireAuth);
 
+const requestsRead: RequestHandler = requirePermission("requests:read");
+const requestsWrite: RequestHandler = requirePermission("requests:write");
+const requestsDelete: RequestHandler = requirePermission("requests:delete");
+
 const clean = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
+
+function orgWhere(req: AuthRequest, extra: Record<string, unknown> = {}) {
+  const base: Record<string, unknown> = { organizationId: req.organizationId };
+  return { ...base, ...extra };
+}
 
 router.get(
   "/",
+  requestsRead,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
-    const where: Record<string, unknown> = { userId };
+    const where = orgWhere(req);
     if (typeof req.query.status === "string" && req.query.status) where.status = req.query.status;
     if (typeof req.query.clientId === "string" && req.query.clientId) where.clientId = req.query.clientId;
     const requests = await prisma.clientRequest.findMany({
@@ -31,20 +40,22 @@ router.get(
 
 router.post(
   "/",
+  requestsWrite,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
+    const { userId, organizationId } = req as AuthRequest;
     const input = createRequestSchema.parse(req.body);
-    const client = await prisma.client.findFirst({ where: { id: input.clientId, userId } });
+    const client = await prisma.client.findFirst({ where: { id: input.clientId, organizationId } });
     if (!client) return res.status(400).json({ success: false, message: "Client not found" });
     let projectId: string | undefined;
     if (input.projectId) {
-      const p = await prisma.project.findFirst({ where: { id: input.projectId, userId, clientId: client.id } });
+      const p = await prisma.project.findFirst({ where: { id: input.projectId, organizationId, clientId: client.id } });
       if (!p) return res.status(400).json({ success: false, message: "Project not found" });
       projectId = p.id;
     }
     const request = await prisma.clientRequest.create({
       data: {
         userId: userId!,
+        organizationId,
         clientId: client.id,
         projectId,
         title: input.title.trim(),
@@ -61,10 +72,11 @@ router.post(
 
 router.get(
   "/:id",
+  requestsRead,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
+    const { organizationId } = req as AuthRequest;
     const request = await prisma.clientRequest.findFirst({
-      where: { id: req.params.id, userId },
+      where: { id: req.params.id, organizationId },
       include: {
         client: { select: { id: true, name: true, company: true } },
         project: { select: { id: true, name: true } },
@@ -78,10 +90,11 @@ router.get(
 
 router.patch(
   "/:id",
+  requestsWrite,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
+    const { organizationId } = req as AuthRequest;
     const input = updateRequestSchema.parse(req.body);
-    const existing = await prisma.clientRequest.findFirst({ where: { id: req.params.id, userId } });
+    const existing = await prisma.clientRequest.findFirst({ where: { id: req.params.id, organizationId } });
     if (!existing) return res.status(404).json({ success: false, message: "Request not found" });
     const request = await prisma.clientRequest.update({
       where: { id: existing.id },
@@ -100,17 +113,19 @@ router.patch(
 // POST /api/requests/:id/convert — Request → Task (the core collaboration flow)
 router.post(
   "/:id/convert",
+  requestsWrite,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
-    const existing = await prisma.clientRequest.findFirst({ where: { id: req.params.id, userId } });
+    const { userId, organizationId } = req as AuthRequest;
+    const existing = await prisma.clientRequest.findFirst({ where: { id: req.params.id, organizationId } });
     if (!existing) return res.status(404).json({ success: false, message: "Request not found" });
     if (existing.status === "CONVERTED" && existing.taskId) {
-      const task = await prisma.task.findFirst({ where: { id: existing.taskId, userId } });
+      const task = await prisma.task.findFirst({ where: { id: existing.taskId, organizationId } });
       if (task) return res.json({ success: true, data: { task, request: existing } });
     }
     const task = await prisma.task.create({
       data: {
         userId: userId!,
+        organizationId,
         title: existing.title,
         description: existing.description,
         priority: existing.priority,
@@ -129,13 +144,14 @@ router.post(
 
 router.delete(
   "/:id",
+  requestsDelete,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
-    const existing = await prisma.clientRequest.findFirst({ where: { id: req.params.id, userId } });
+    const { organizationId } = req as AuthRequest;
+    const existing = await prisma.clientRequest.findFirst({ where: { id: req.params.id, organizationId } });
     if (!existing) return res.status(404).json({ success: false, message: "Request not found" });
     await prisma.clientRequest.delete({ where: { id: existing.id } });
     return res.json({ success: true, message: "Request deleted" });
   }),
 );
 
-export default router;
+export default router

@@ -1,18 +1,26 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
-import { requireAuth, type AuthRequest } from "../middleware/auth.js";
+import { requireAuth, type AuthRequest, requirePermission } from "../middleware/auth.js";
 import { computeHealth } from "../utils/health.js";
 import { getProvider } from "../lib/intelligence.js";
 
 const router = Router();
 router.use(requireAuth);
 
+const dashboardRead: RequestHandler = requirePermission("projects:read");
+
+function orgWhere(req: AuthRequest, extra: Record<string, unknown> = {}) {
+  const base: Record<string, unknown> = { organizationId: req.organizationId };
+  return { ...base, ...extra };
+}
+
 // GET /api/dashboard — real workspace overview (nothing invented)
 router.get(
   "/",
+  dashboardRead,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
+    const { organizationId } = req as AuthRequest;
     const now = new Date();
     const [
       activeClients,
@@ -28,12 +36,12 @@ router.get(
       projectsRaw,
       nextActions,
     ] = await Promise.all([
-      prisma.client.count({ where: { userId, status: "ACTIVE" } }),
-      prisma.project.count({ where: { userId, status: "ACTIVE" } }),
-      prisma.task.count({ where: { userId, status: { in: ["TODO", "IN_PROGRESS"] } } }),
-      prisma.task.count({ where: { userId, status: "DONE" } }),
+      prisma.client.count({ where: { organizationId, status: "ACTIVE" } }),
+      prisma.project.count({ where: { organizationId, status: "ACTIVE" } }),
+      prisma.task.count({ where: { organizationId, status: { in: ["TODO", "IN_PROGRESS"] } } }),
+      prisma.task.count({ where: { organizationId, status: "DONE" } }),
       prisma.task.findMany({
-        where: { userId, status: { not: "DONE" }, dueDate: { lt: now } },
+        where: { organizationId, status: { not: "DONE" }, dueDate: { lt: now } },
         orderBy: { dueDate: "asc" },
         take: 5,
         include: {
@@ -41,9 +49,9 @@ router.get(
           client: { select: { id: true, name: true, company: true } },
         },
       }),
-      prisma.activity.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 8 }),
+      prisma.activity.findMany({ where: orgWhere(req), orderBy: { createdAt: "desc" }, take: 8 }),
       prisma.task.findMany({
-        where: { userId, status: { in: ["TODO", "IN_PROGRESS"] }, dueDate: { gte: now } },
+        where: { organizationId, status: { in: ["TODO", "IN_PROGRESS"] }, dueDate: { gte: now } },
         orderBy: { dueDate: "asc" },
         take: 6,
         include: {
@@ -51,16 +59,16 @@ router.get(
           client: { select: { id: true, name: true, company: true } },
         },
       }),
-      prisma.client.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 5 }),
+      prisma.client.findMany({ where: orgWhere(req), orderBy: { createdAt: "desc" }, take: 5 }),
       prisma.clientRequest.findMany({
-        where: { userId, status: "OPEN" },
+        where: orgWhere(req, { status: "OPEN" }),
         orderBy: { createdAt: "desc" },
         take: 5,
         include: { client: { select: { id: true, name: true, company: true } } },
       }),
-      prisma.notification.count({ where: { userId, readAt: null } }),
+      prisma.notification.count({ where: { organizationId, readAt: null } }),
       prisma.project.findMany({
-        where: { userId, status: { in: ["ACTIVE", "PLANNING", "ON_HOLD"] } },
+        where: { organizationId, status: { in: ["ACTIVE", "PLANNING", "ON_HOLD"] } },
         orderBy: { dueDate: "asc" },
         take: 6,
         include: {
@@ -68,7 +76,7 @@ router.get(
           tasks: { select: { status: true, priority: true, dueDate: true } },
         },
       }),
-      getProvider().nextActions(userId!),
+      getProvider().nextActions((req as AuthRequest).userId!),
     ]);
 
     const projectHealth = projectsRaw.map((p: typeof projectsRaw[0]) => ({
@@ -105,4 +113,4 @@ router.get(
   }),
 );
 
-export default router;
+export default router

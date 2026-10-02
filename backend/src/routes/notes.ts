@@ -1,18 +1,27 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
-import { requireAuth, type AuthRequest } from "../middleware/auth.js";
+import { requireAuth, type AuthRequest, requirePermission } from "../middleware/auth.js";
 import { createNoteSchema, updateNoteSchema } from "../schemas/note.js";
 import { recordActivity } from "../utils/activity.js";
 
 const router = Router();
 router.use(requireAuth);
 
+const notesRead: RequestHandler = requirePermission("notes:read");
+const notesWrite: RequestHandler = requirePermission("notes:write");
+const notesDelete: RequestHandler = requirePermission("notes:delete");
+
+function orgWhere(req: AuthRequest, extra: Record<string, unknown> = {}) {
+  const base: Record<string, unknown> = { organizationId: req.organizationId };
+  return { ...base, ...extra };
+}
+
 router.get(
   "/",
+  notesRead,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
-    const where: Record<string, unknown> = { userId };
+    const where = orgWhere(req);
     if (typeof req.query.clientId === "string" && req.query.clientId) where.clientId = req.query.clientId;
     if (typeof req.query.projectId === "string" && req.query.projectId) where.projectId = req.query.projectId;
     const notes = await prisma.note.findMany({
@@ -29,20 +38,22 @@ router.get(
 
 router.post(
   "/",
+  notesWrite,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
+    const { userId, organizationId } = req as AuthRequest;
     const input = createNoteSchema.parse(req.body);
     if (input.clientId) {
-      const c = await prisma.client.findFirst({ where: { id: input.clientId, userId } });
+      const c = await prisma.client.findFirst({ where: { id: input.clientId, organizationId } });
       if (!c) return res.status(400).json({ success: false, message: "Client not found" });
     }
     if (input.projectId) {
-      const p = await prisma.project.findFirst({ where: { id: input.projectId, userId } });
+      const p = await prisma.project.findFirst({ where: { id: input.projectId, organizationId } });
       if (!p) return res.status(400).json({ success: false, message: "Project not found" });
     }
     const note = await prisma.note.create({
       data: {
         userId: userId!,
+        organizationId,
         title: input.title?.trim() || null,
         content: input.content.trim(),
         clientId: input.clientId,
@@ -61,10 +72,11 @@ router.post(
 
 router.patch(
   "/:id",
+  notesWrite,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
+    const { organizationId } = req as AuthRequest;
     const input = updateNoteSchema.parse(req.body);
-    const existing = await prisma.note.findFirst({ where: { id: req.params.id, userId } });
+    const existing = await prisma.note.findFirst({ where: { id: req.params.id, organizationId } });
     if (!existing) return res.status(404).json({ success: false, message: "Note not found" });
     const note = await prisma.note.update({
       where: { id: existing.id },
@@ -80,13 +92,14 @@ router.patch(
 
 router.delete(
   "/:id",
+  notesDelete,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
-    const existing = await prisma.note.findFirst({ where: { id: req.params.id, userId } });
+    const { organizationId } = req as AuthRequest;
+    const existing = await prisma.note.findFirst({ where: { id: req.params.id, organizationId } });
     if (!existing) return res.status(404).json({ success: false, message: "Note not found" });
     await prisma.note.delete({ where: { id: existing.id } });
     return res.json({ success: true, message: "Note deleted" });
   }),
 );
 
-export default router;
+export default router

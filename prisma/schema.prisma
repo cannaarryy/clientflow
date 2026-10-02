@@ -42,14 +42,66 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ── Roles & Permissions ──────────────────────────────────────
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model Organization {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  isDemo      Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+  users       User[]       @relation("UserOrganization")
+  clients     Client[]
+  projects    Project[]
+  tasks       Task[]
+  notes       Note[]
+  activities  Activity[]
+  requests    ClientRequest[]
+  comments    Comment[]
+  notifications Notification[]
+  automations AutomationRule[]
+
+  @@index([slug])
+}
+
+// For backward compatibility during migration - organizationId is optional initially
+// Will be made required after backfill
+
+model Membership {
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           OrganizationRole  @default(MEMBER)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
 model User {
-  id            String     @id @default(cuid())
-  email         String     @unique
+  id            String       @id @default(cuid())
+  email         String       @unique
   passwordHash  String
   name          String
-  tokenVersion  Int        @default(0)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  tokenVersion  Int          @default(0)
+  platformRole  String       @default("USER") // USER | ADMIN
+  organizationId String?
+  organization  Organization? @relation("UserOrganization", fields: [organizationId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  organizations Membership[]
   clients       Client[]
   projects      Project[]
   tasks         Task[]
@@ -61,199 +113,227 @@ model User {
   automations   AutomationRule[]
 
   @@index([email])
+  @@index([organizationId])
 }
 
 model Client {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  company   String?
-  email     String?
-  phone     String?
-  notes     String?
-  status    String   @default("ACTIVE")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  projects  Project[]
-  tasks     Task[]
-  notesList Note[]
-  requests  ClientRequest[]
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  name          String
+  company       String?
+  email         String?
+  phone         String?
+  notes         String?
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  projects      Project[]
+  tasks         Task[]
+  notesList     Note[]
+  requests      ClientRequest[]
   // Client Portal (v0.2): magic-link access scoped to this client only.
-  portalEnabled Boolean @default(false)
-  portalToken   String? @unique
+  portalEnabled Boolean  @default(false)
+  portalToken   String?  @unique
 
   @@index([userId])
+  @@index([organizationId])
   @@index([userId, status])
   @@index([userId, name])
 }
 
 model Project {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clientId    String
-  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  name        String
-  description String?
-  status      String   @default("PLANNING")
-  priority    String   @default("MEDIUM")
-  startDate   DateTime?
-  dueDate     DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tasks       Task[]
-  notesList   Note[]
-  requests    ClientRequest[]
-  comments    Comment[]
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  status        String   @default("PLANNING")
+  priority      String   @default("MEDIUM")
+  startDate     DateTime?
+  dueDate       DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  tasks         Task[]
+  notesList     Note[]
+  requests      ClientRequest[]
+  comments      Comment[]
   // Visible in the Client Portal when true (professional controls this).
-  isShared    Boolean  @default(false)
+  isShared      Boolean  @default(false)
 
   @@index([userId])
+  @@index([organizationId])
   @@index([clientId])
   @@index([userId, status])
 }
 
 model Task {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId   String?
-  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  clientId    String?
-  client      Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  status      String   @default("TODO")
-  priority    String   @default("MEDIUM")
-  dueDate     DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  comments    Comment[]
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId      String?
+  client        Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  status        String   @default("TODO")
+  priority      String   @default("MEDIUM")
+  dueDate       DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  comments      Comment[]
   // Visible in the Client Portal only when true AND the parent project is shared.
-  isShared    Boolean  @default(false)
+  isShared      Boolean  @default(false)
 
   @@index([userId])
+  @@index([organizationId])
   @@index([projectId])
   @@index([clientId])
   @@index([userId, status])
 }
 
 model Note {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clientId  String?
-  client    Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  projectId String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title     String?
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  clientId      String?
+  client        Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title         String?
+  content       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   // INTERNAL = professional only. SHARED = also visible in the Client Portal.
-  visibility String @default("INTERNAL")
+  visibility    String   @default("INTERNAL")
 
   @@index([userId])
+  @@index([organizationId])
   @@index([clientId])
   @@index([projectId])
 }
 
 model Activity {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type       String
-  message    String
-  entityType String?
-  entityId   String?
-  createdAt  DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  type          String
+  message       String
+  entityType    String?
+  entityId      String?
+  createdAt     DateTime @default(now())
 
   @@index([userId])
+  @@index([organizationId])
   @@index([userId, createdAt])
 }
 
 // ── v0.2: collaboration ──────────────────────────────────
 
 model ClientRequest {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clientId    String
-  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  projectId   String?
-  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  title       String
-  description String?
-  priority    String   @default("MEDIUM")
-  status      String   @default("OPEN")
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title         String
+  description   String?
+  priority      String   @default("MEDIUM")
+  status        String   @default("OPEN")
   // CLIENT = created from the portal, PRO = created by the professional.
-  createdBy   String   @default("PRO")
+  createdBy     String   @default("PRO")
   // Task created when this request is converted (Request → Task flow).
-  taskId      String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  comments    Comment[]
+  taskId        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  comments      Comment[]
 
   @@index([userId])
+  @@index([organizationId])
   @@index([clientId])
   @@index([userId, status])
 }
 
 model Comment {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId  String?
-  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  taskId     String?
-  task       Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  requestId  String?
-  request    ClientRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  authorName String
-  authorRole String   @default("PRO")
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId        String?
+  task          Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  requestId     String?
+  request       ClientRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorName    String
+  authorRole    String   @default("PRO")
   // INTERNAL = professional only. SHARED = visible in the Client Portal.
-  visibility String   @default("INTERNAL")
-  content    String
-  createdAt  DateTime @default(now())
+  visibility    String   @default("INTERNAL")
+  content       String
+  createdAt     DateTime @default(now())
 
   @@index([userId])
+  @@index([organizationId])
   @@index([projectId])
   @@index([taskId])
   @@index([requestId])
 }
 
 model Notification {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type       String
-  message    String
-  entityType String?
-  entityId   String?
-  readAt     DateTime?
-  createdAt  DateTime  @default(now())
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  type          String
+  message       String
+  entityType    String?
+  entityId      String?
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
 
   @@index([userId])
+  @@index([organizationId])
   @@index([userId, createdAt])
 }
 
 model AutomationRule {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  name          String
   // Trigger: project.completed | task.completed | task.overdue | request.created
-  trigger   String
+  trigger       String
   // Action: create_task | create_activity | create_notification
-  action    String
+  action        String
   // JSON config, e.g. {"title":"Follow up","priority":"MEDIUM"}
-  config    String    @default("{}")
-  enabled   Boolean   @default(true)
-  lastRunAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  config        String    @default("{}")
+  enabled       Boolean   @default(true)
+  lastRunAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([userId])
+  @@index([organizationId])
   @@index([userId, trigger])
 }
