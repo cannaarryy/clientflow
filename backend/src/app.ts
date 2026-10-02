@@ -25,6 +25,9 @@ import portalRoutes from "./routes/portal.js";
 export function createApp() {
   const app = express();
 
+  // Behind Render/Cloudflare proxy — required for express-rate-limit + correct IPs
+  app.set("trust proxy", 1);
+
   app.use(helmet());
   app.use(
     cors({
