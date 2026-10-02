@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { csrfProtection, csrfTokenMiddleware, CSRF_HEADER } from "./middleware/csrf.js";
 import authRoutes from "./routes/auth.js";
 import clientRoutes from "./routes/clients.js";
 import projectRoutes from "./routes/projects.js";
@@ -39,25 +40,49 @@ export function createApp() {
   app.use(cookieParser());
   if (env.nodeEnv !== "test") app.use(morgan("dev"));
 
-  const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
+  // CSRF token cookie for all requests
+  app.use(csrfTokenMiddleware);
+
+  // IP-based rate limit for unauthenticated endpoints
+  const authLimiter = rateLimit({ 
+    windowMs: 15 * 60 * 1000, 
+    max: 60, 
+    standardHeaders: true, 
+    legacyHeaders: false,
+    keyGenerator: (req) => req.ip ?? "unknown",
+  });
+
+  // Per-email rate limit for login attempts (prevents credential stuffing)
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => `login:${req.body?.email?.toLowerCase() ?? req.ip ?? "unknown"}`,
+    skipSuccessfulRequests: true,
+  });
 
   app.get("/api/health", (_req, res) => res.json({ success: true, message: "ClientFlow API v0.2", time: new Date().toISOString() }));
 
   app.use("/api/auth", authLimiter, authRoutes);
+  app.post("/api/auth/login", loginLimiter);
   app.use("/api/portal", portalRoutes);
-  app.use("/api/clients", clientRoutes);
-  app.use("/api/projects", projectRoutes);
-  app.use("/api/tasks", taskRoutes);
-  app.use("/api/notes", noteRoutes);
-  app.use("/api/activities", activityRoutes);
-  app.use("/api/dashboard", dashboardRoutes);
-  app.use("/api/search", searchRoutes);
-  app.use("/api/user", userRoutes);
-  app.use("/api/requests", requestRoutes);
-  app.use("/api/comments", commentRoutes);
-  app.use("/api/notifications", notificationRoutes);
-  app.use("/api/automations", automationRoutes);
-  app.use("/api/intelligence", intelligenceRoutes);
+  app.use("/api/clients", csrfProtection, clientRoutes);
+  app.use("/api/projects", csrfProtection, projectRoutes);
+  app.use("/api/tasks", csrfProtection, taskRoutes);
+  app.use("/api/notes", csrfProtection, noteRoutes);
+  app.use("/api/activities", csrfProtection, activityRoutes);
+  app.use("/api/dashboard", csrfProtection, dashboardRoutes);
+  app.use("/api/search", csrfProtection, searchRoutes);
+  app.use("/api/user", csrfProtection, userRoutes);
+  app.use("/api/requests", csrfProtection, requestRoutes);
+  app.use("/api/comments", csrfProtection, commentRoutes);
+  app.use("/api/notifications", csrfProtection, notificationRoutes);
+  app.use("/api/automations", csrfProtection, automationRoutes);
+  app.use("/api/intelligence", csrfProtection, intelligenceRoutes);
+
+  // Expose CSRF header name for frontend
+  app.get("/api/csrf-header", (_req, res) => res.json({ header: CSRF_HEADER }));
 
   app.use("/api", (_req, res) => res.status(404).json({ success: false, message: "Endpoint not found" }));
 

@@ -11,8 +11,11 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
   if (!token) return res.status(401).json({ success: false, message: "Not authenticated" });
   try {
     const payload = verifyToken(token);
-    const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { id: true } });
+    const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { id: true, tokenVersion: true } });
     if (!user) return res.status(401).json({ success: false, message: "Not authenticated" });
+    if (user.tokenVersion !== payload.tokenVersion) {
+      return res.status(401).json({ success: false, message: "Session expired. Please log in again." });
+    }
     req.userId = user.id;
     next();
   } catch {

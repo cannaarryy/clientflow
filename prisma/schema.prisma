@@ -43,21 +43,22 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  passwordHash String
-  name         String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  clients      Client[]
-  projects     Project[]
-  tasks        Task[]
-  notes        Note[]
-  activities   Activity[]
-  requests     ClientRequest[]
-  comments     Comment[]
+  id            String     @id @default(cuid())
+  email         String     @unique
+  passwordHash  String
+  name          String
+  tokenVersion  Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  clients       Client[]
+  projects      Project[]
+  tasks         Task[]
+  notes         Note[]
+  activities    Activity[]
+  requests      ClientRequest[]
+  comments      Comment[]
   notifications Notification[]
-  automations  AutomationRule[]
+  automations   AutomationRule[]
 
   @@index([email])
 }

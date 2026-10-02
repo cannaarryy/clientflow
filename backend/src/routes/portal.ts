@@ -72,7 +72,16 @@ router.get(
         include: { project: { select: { id: true, name: true } } },
       }),
       prisma.activity.findMany({
-        where: { userId, type: { in: ["project.created", "project.updated", "task.completed", "request.converted", "note.added"] } },
+        where: { 
+          userId, 
+          type: { in: ["project.created", "project.updated", "task.completed", "request.converted", "note.added"] },
+          OR: [
+            { entityType: "client", entityId: clientId },
+            { entityType: "project", entityId: { in: sharedProjectIds } },
+            { entityType: "task", entityId: { in: sharedProjectIds } },
+            { entityType: "request", entityId: { in: sharedProjectIds } },
+          ]
+        },
         orderBy: { createdAt: "desc" },
         take: 15,
       }),
