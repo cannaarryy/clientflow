@@ -9,20 +9,27 @@ import { initials } from "../utils/format.js";
 import { api } from "../services/api.js";
 import type { Notification } from "../types/index.js";
 
-const NAV = [
-  { to: "/app", end: true, label: "app.dashboard", icon: "M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10" },
-  { to: "/app/clients", label: "app.clients", icon: "M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" },
-  { to: "/app/projects", label: "app.projects", icon: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" },
-  { to: "/app/tasks", label: "app.tasks", icon: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" },
-  { to: "/app/requests", label: "app.requests", icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" },
-  { to: "/app/notes", label: "app.notes", icon: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" },
-  { to: "/app/automations", label: "app.automations", icon: "M13 2 3 14h7l-1 8 10-12h-7l1-8z" },
-  { to: "/app/activity", label: "app.activity", icon: "M22 12h-4l-3 9L9 3l-3 9H2" },
-  { to: "/app/settings", label: "app.settings", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" },
-];
+function getNavItems(hasPermission: (perm: string) => boolean, isAdmin: () => boolean, isOwner: () => boolean) {
+  const items = [
+    { to: "/app", end: true, label: "app.dashboard", icon: "M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10", perm: "clients:read" },
+    { to: "/app/clients", label: "app.clients", icon: "M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75", perm: "clients:read" },
+    { to: "/app/projects", label: "app.projects", icon: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z", perm: "projects:read" },
+    { to: "/app/tasks", label: "app.tasks", icon: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11", perm: "tasks:read" },
+    { to: "/app/requests", label: "app.requests", icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z", perm: "requests:read" },
+    { to: "/app/notes", label: "app.notes", icon: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z", perm: "notes:read" },
+    { to: "/app/automations", label: "app.automations", icon: "M13 2 3 14h7l-1 8 10-12h-7l1-8z", perm: "automations:read" },
+    { to: "/app/activity", label: "app.activity", icon: "M22 12h-4l-3 9L9 3l-3 9H2", perm: "notes:read" },
+    { to: "/app/settings", label: "app.settings", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z", perm: "settings:read", adminOnly: true },
+  ];
+
+  return items.filter((item) => {
+    if (item.adminOnly && !isOwner()) return false;
+    return hasPermission(item.perm);
+  });
+}
 
 export function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission, isOwner, isAdmin, loading } = useAuth();
   const { push } = useToast();
   const { t, timeAgo } = useI18n();
   const navigate = useNavigate();
@@ -31,6 +38,8 @@ export function AppLayout() {
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
   const [bellOpen, setBellOpen] = useState(false);
+
+  const NAV = loading ? [] : getNavItems(hasPermission, isAdmin, isOwner);
 
   useEffect(() => {
     const toggle = () => setPaletteOpen((v) => !v);
@@ -75,7 +84,7 @@ export function AppLayout() {
       onClick={() => setPaletteOpen(true)}
       className="flex w-full items-center gap-2.5 rounded-lg border border-[#222] bg-[#111] px-3 py-2 text-sm text-[#818181] transition hover:border-[#333] hover:text-[#A1A1A1]"
     >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
       <span className="flex-1 text-left">{t("app.search")}</span>
       <kbd className="hidden rounded border border-[#2c2c2c] bg-[#181818] px-1.5 py-0.5 font-mono text-[10px] text-[#818181] sm:block">⌘K</kbd>
     </button>

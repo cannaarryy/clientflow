@@ -4,10 +4,38 @@ import { Logo, StatusBadge } from "../components/ui.js";
 import { ProductPreview } from "../components/ProductPreview.js";
 import { useAuth } from "../hooks/AuthContext.js";
 import { useI18n, LangSwitcher } from "../i18n/LanguageProvider.js";
+import { api } from "../services/api.js";
 
 export function LandingPage() {
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sandboxLoading, setSandboxLoading] = useState(false);
+
+  const launchSandbox = async () => {
+    setSandboxLoading(true);
+    try {
+      const BASE = import.meta.env.VITE_API_URL ?? "";
+      const res = await fetch(`${BASE}/api/demo/sandbox`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "x-visitor-id": "landing-demo",
+        },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (!res.ok || json?.success === false) throw new Error(json?.message ?? "Failed");
+      localStorage.setItem("sandboxToken", json.data.token);
+      localStorage.setItem("sandboxOrgId", json.data.organization.id);
+      window.location.href = "/app";
+    } catch (e) {
+      console.error("Failed to launch sandbox:", e);
+      alert("No se pudo crear la demo. Inténtalo de nuevo.");
+    } finally {
+      setSandboxLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Subtle reveal-on-scroll (disabled for reduced-motion users)
@@ -34,7 +62,7 @@ export function LandingPage() {
     <div className="min-h-screen bg-[#050505] text-[#F5F5F5]">
       <Navbar loggedIn={!!user} menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((v) => !v)} />
       <main>
-        <Hero loggedIn={!!user} />
+        <Hero loggedIn={!!user} onTryDemo={launchSandbox} sandboxLoading={sandboxLoading} />
         <PreviewSection />
         <ProblemSolution />
         <Features />
@@ -147,7 +175,7 @@ function Navbar({ loggedIn, menuOpen, onToggleMenu }: { loggedIn: boolean; menuO
 }
 
 /* ── Hero ───────────────────────────────────────────── */
-function Hero({ loggedIn }: { loggedIn: boolean }) {
+function Hero({ loggedIn, onTryDemo, sandboxLoading }: { loggedIn: boolean; onTryDemo: () => void; sandboxLoading: boolean }) {
   const { t } = useI18n();
   return (
     <section className="relative overflow-hidden">
@@ -170,9 +198,9 @@ function Hero({ loggedIn }: { loggedIn: boolean }) {
           <Link to={loggedIn ? "/app" : "/register"} className="btn-primary w-full !px-7 !py-3 !text-[15px] sm:w-auto">
             {loggedIn ? t("hero.ctaOpen") : t("hero.ctaStart")}
           </Link>
-          <Link to={loggedIn ? "/app" : "/login"} className="btn-ghost w-full !px-7 !py-3 !text-[15px] sm:w-auto">
-            {t("hero.ctaDemo")}
-          </Link>
+          <button onClick={onTryDemo} disabled={sandboxLoading} className="btn-ghost w-full !px-7 !py-3 !text-[15px] sm:w-auto">
+            {sandboxLoading ? "Creando demo..." : t("hero.ctaDemo")}
+          </button>
         </div>
         <p className="anim-fade-up mt-4 font-mono text-[11px] text-[#6b6b6b]" style={{ animationDelay: "0.32s" }}>{t("hero.mono")}</p>
       </div>
