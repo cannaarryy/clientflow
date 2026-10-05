@@ -53,21 +53,28 @@ router.post(
       return res.status(500).json({ success: false, message: "Demo template not found. Run seed first." });
     }
 
-    const [templateClients, templateProjects, templateTasks, templateNotes, templateActivities,
-           templateRequests, templateComments, templateNotifications, templateAutomations, templateMemberships] = 
-      await Promise.all([
-        prisma.client.findMany({ where: { organizationId: templateOrg.id } }),
-        prisma.project.findMany({ where: { organizationId: templateOrg.id } }),
-        prisma.task.findMany({ where: { organizationId: templateOrg.id } }),
-        prisma.note.findMany({ where: { organizationId: templateOrg.id } }),
-        prisma.activity.findMany({ where: { organizationId: templateOrg.id } }),
-        prisma.clientRequest.findMany({ where: { organizationId: templateOrg.id } }),
-        prisma.comment.findMany({ where: { organizationId: templateOrg.id } }),
-        prisma.notification.findMany({ where: { organizationId: templateOrg.id } }),
-        prisma.automationRule.findMany({ where: { organizationId: templateOrg.id } }),
-        prisma.membership.findMany({ where: { organizationId: templateOrg.id }, include: { user: { select: { id: true, email: true, name: true } } } }),
-      ]);
-    console.log("[demo] template data loaded");
+    let templateClients, templateProjects, templateTasks, templateNotes, templateActivities,
+        templateRequests, templateComments, templateNotifications, templateAutomations, templateMemberships;
+    try {
+      [templateClients, templateProjects, templateTasks, templateNotes, templateActivities,
+         templateRequests, templateComments, templateNotifications, templateAutomations, templateMemberships] = 
+        await Promise.all([
+          prisma.client.findMany({ where: { organizationId: templateOrg.id } }),
+          prisma.project.findMany({ where: { organizationId: templateOrg.id } }),
+          prisma.task.findMany({ where: { organizationId: templateOrg.id } }),
+          prisma.note.findMany({ where: { organizationId: templateOrg.id } }),
+          prisma.activity.findMany({ where: { organizationId: templateOrg.id } }),
+          prisma.clientRequest.findMany({ where: { organizationId: templateOrg.id } }),
+          prisma.comment.findMany({ where: { organizationId: templateOrg.id } }),
+          prisma.notification.findMany({ where: { organizationId: templateOrg.id } }),
+          prisma.automationRule.findMany({ where: { organizationId: templateOrg.id } }),
+          prisma.membership.findMany({ where: { organizationId: templateOrg.id }, include: { user: { select: { id: true, email: true, name: true } } } }),
+        ]);
+      console.log("[demo] template data loaded");
+    } catch (e) {
+      console.error("[demo] template data load failed:", e);
+      return res.status(500).json({ success: false, message: "Template data load failed", error: String(e) });
+    }
 
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
@@ -82,14 +89,20 @@ router.post(
     console.log("[demo] sandboxOrg created:", sandboxOrg.id);
 
     // Create sandbox record
-    const sandbox = await prisma.demoSandbox.create({
-      data: {
-        organizationId: sandboxOrg.id,
-        visitorId,
-        expiresAt,
-      },
-    });
-    console.log("[demo] sandbox created:", sandbox.id);
+    let sandbox;
+    try {
+      sandbox = await prisma.demoSandbox.create({
+        data: {
+          organizationId: sandboxOrg.id,
+          visitorId,
+          expiresAt,
+        },
+      });
+      console.log("[demo] sandbox created:", sandbox.id);
+    } catch (e) {
+      console.error("[demo] sandbox create failed:", e);
+      return res.status(500).json({ success: false, message: "Sandbox create failed", error: String(e) });
+    }
 
     // Create clients
     const createdClients = await prisma.client.createMany({
