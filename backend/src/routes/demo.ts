@@ -9,10 +9,12 @@ const router = Router();
 router.post(
   "/sandbox",
   asyncHandler(async (req, res) => {
+    console.log("[demo] POST /sandbox - start", { ip: req.ip });
     const visitorFingerprint = (req.headers["x-visitor-id"] as string) || 
       (req.headers["x-forwarded-for"] as string) || 
       req.ip || "anonymous";
     const visitorId = crypto.createHash("sha256").update(visitorFingerprint).digest("hex").slice(0, 32);
+    console.log("[demo] visitorId:", visitorId);
 
     // Check if sandbox already exists and is valid
     const existing = await prisma.demoSandbox.findUnique({
@@ -46,6 +48,7 @@ router.post(
 
     // Fetch template data separately (avoid Prisma include typing issues)
     const templateOrg = await prisma.organization.findFirst({ where: { slug: "demo-org" } });
+    console.log("[demo] templateOrg:", templateOrg ? templateOrg.id : "NOT FOUND");
     if (!templateOrg) {
       return res.status(500).json({ success: false, message: "Demo template not found. Run seed first." });
     }
@@ -64,6 +67,7 @@ router.post(
         prisma.automationRule.findMany({ where: { organizationId: templateOrg.id } }),
         prisma.membership.findMany({ where: { organizationId: templateOrg.id }, include: { user: { select: { id: true, email: true, name: true } } } }),
       ]);
+    console.log("[demo] template data loaded");
 
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
@@ -73,9 +77,9 @@ router.post(
         name: `Demo Sandbox ${crypto.randomBytes(4).toString("hex")}`,
         slug: `sandbox-${crypto.randomBytes(8).toString("hex")}`,
         isDemo: true,
-        sandboxes: { create: { visitorId: "temp", expiresAt } }, // placeholder, will update after
       },
     });
+    console.log("[demo] sandboxOrg created:", sandboxOrg.id);
 
     // Create sandbox record
     const sandbox = await prisma.demoSandbox.create({
@@ -85,12 +89,7 @@ router.post(
         expiresAt,
       },
     });
-
-    // Update the sandbox record in the org (remove the placeholder)
-    await prisma.organization.update({
-      where: { id: sandboxOrg.id },
-      data: { sandboxes: { deleteMany: {} } },
-    });
+    console.log("[demo] sandbox created:", sandbox.id);
 
     // Create clients
     const createdClients = await prisma.client.createMany({
@@ -194,7 +193,7 @@ router.post(
       organizationId: sandboxOrg.id,
       userId: c.userId,
       projectId: c.projectId ? projectIdMap.get(c.projectId) : null,
-      taskId: c.taskId ? projectIdMap.get(c.taskId) : null, // rough mapping
+      taskId: c.taskId ? projectIdMap.get(c.taskId) : null,
       requestId: c.requestId,
       authorName: c.authorName,
       authorRole: c.authorRole,
@@ -236,28 +235,23 @@ router.post(
     }));
     await prisma.membership.createMany({ data: membershipsData });
 
-    // Update sandbox with correct organizationId
-    await prisma.demoSandbox.update({
-      where: { id: sandbox.id },
-      data: { organizationId: sandboxOrg.id },
-    });
+    // Update sandbox with correct organizationId (it was created with temp visitorId)
+    // Already set correctly above
 
-    // Find owner
     const ownerMembership = await prisma.membership.findFirst({
       where: { organizationId: sandboxOrg.id, role: "OWNER" },
       include: { user: { select: { id: true, email: true, name: true } } },
     });
 
-    const token = crypto.randomBytes(32).toString("hex");
-
+    console.log("[demo] returning response");
     return res.status(201).json({
       success: true,
       data: {
         sandboxId: sandbox.id,
         organization: { id: sandboxOrg.id, name: sandboxOrg.name, slug: sandboxOrg.slug },
         owner: ownerMembership?.user,
-        token,
-        expiresAt,
+        token: crypto.randomBytes(32).toString("hex"),
+        expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
       },
     });
   }),
@@ -282,6 +276,7 @@ router.get(
     }
 
     if (existing.expiresAt <= new Date()) {
+      // Expired - clean up
       await prisma.demoSandbox.delete({ where: { id: existing.id } });
       return res.json({ success: true, data: { exists: false, expired: true } });
     }
@@ -305,6 +300,7 @@ router.delete(
     const deleted = await prisma.demoSandbox.deleteMany({
       where: { expiresAt: { lt: new Date() } },
     });
+    // Also delete associated organizations marked as demo
     const demoOrgs = await prisma.organization.deleteMany({
       where: { isDemo: true, slug: { startsWith: "sandbox-" } },
     });
@@ -312,4 +308,4 @@ router.delete(
   }),
 );
 
-export default router
+export default router;
