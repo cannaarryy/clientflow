@@ -7,6 +7,7 @@ import { AppLayout } from "./layouts/AppLayout.js";
 import { LandingPage } from "./pages/Landing.js";
 import { LoginPage, RegisterPage } from "./pages/Auth.js";
 import { PortalPage } from "./pages/Portal.js";
+import { DemoPage } from "./pages/Demo.js";
 import { NotFoundPage } from "./pages/NotFound.js";
 
 // Lazy-load app pages for code splitting
@@ -65,6 +66,7 @@ export function App() {
             <Routes>
               {/* Marketing */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/demo" element={<DemoPage />} />
               <Route path="/login" element={<PublicOnly><LoginPage /></PublicOnly>} />
               <Route path="/register" element={<PublicOnly><RegisterPage /></PublicOnly>} />
               {/* Client Portal (public magic link — outside /app auth) */}

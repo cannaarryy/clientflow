@@ -5,10 +5,10 @@ import crypto from "crypto";
 
 const router = Router();
 
-// POST /api/demo/sandbox
+// POST /api/demo/sandbox — create ephemeral sandbox for visitor (no auth required)
 router.post(
   "/sandbox",
-  asyncHandler(async function sandboxPost(req: Request, res: Response) {
+  asyncHandler(async (req, res) => {
     console.log("[demo] POST /sandbox - start", { ip: req.ip });
     const visitorFingerprint = (req.headers["x-visitor-id"] as string) || 
       (req.headers["x-forwarded-for"] as string) || 
@@ -16,6 +16,7 @@ router.post(
     const visitorId = crypto.createHash("sha256").update(visitorFingerprint).digest("hex").slice(0, 32);
     console.log("[demo] visitorId:", visitorId);
 
+    // Check if sandbox already exists and is valid
     const existing = await prisma.demoSandbox.findUnique({
       where: { visitorId },
       include: { organization: true },
@@ -26,7 +27,7 @@ router.post(
       const membership = await prisma.membership.findFirst({
         where: { organizationId: org.id, role: "OWNER" },
         include: { user: { select: { id: true, email: true, name: true } } },
-      );
+      });
 
       await prisma.demoSandbox.update({
         where: { id: existing.id },
@@ -45,6 +46,7 @@ router.post(
       });
     }
 
+    // Fetch template data separately (avoid Prisma include typing issues)
     let templateOrg;
     try {
       templateOrg = await prisma.organization.findFirst({ where: { slug: "demo-org" } });
@@ -80,9 +82,11 @@ router.post(
       return res.status(500).json({ success: false, message: "Template data load failed", error: String(e) });
     }
 
+    // Wrap entire sandbox creation in single try-catch to see actual error
     try {
       const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
+      // Create new organization as copy
       const sandboxOrg = await prisma.organization.create({
         data: {
           name: `Demo Sandbox ${crypto.randomBytes(4).toString("hex")}`,
@@ -92,6 +96,7 @@ router.post(
       });
       console.log("[demo] sandboxOrg created:", sandboxOrg.id);
 
+      // Create sandbox record
       const sandbox = await prisma.demoSandbox.create({
         data: {
           organizationId: sandboxOrg.id,
@@ -101,6 +106,7 @@ router.post(
       });
       console.log("[demo] sandbox created:", sandbox.id);
 
+      // Create clients
       const createdClients = await prisma.client.createMany({
         data: templateClients.map((c) => ({
           organizationId: sandboxOrg.id,
@@ -116,12 +122,14 @@ router.post(
         })),
       });
 
+      // Map old client IDs to new ones
       const newClients = await prisma.client.findMany({ where: { organizationId: sandboxOrg.id } });
       const clientIdMap = new Map<string, string>();
       templateClients.forEach((oldClient, index) => {
         if (newClients[index]) clientIdMap.set(oldClient.id, newClients[index].id);
       });
 
+      // Create projects with mapped clientIds
       const projectsData = templateProjects.map((p) => ({
         organizationId: sandboxOrg.id,
         userId: p.userId,
@@ -142,6 +150,7 @@ router.post(
         if (newProjects[index]) projectIdMap.set(oldProject.id, newProjects[index].id);
       });
 
+      // Create tasks
       const tasksData = templateTasks.map((t) => ({
         organizationId: sandboxOrg.id,
         userId: t.userId,
@@ -156,6 +165,7 @@ router.post(
       }));
       await prisma.task.createMany({ data: tasksData });
 
+      // Create notes
       const notesData = templateNotes.map((n) => ({
         organizationId: sandboxOrg.id,
         userId: n.userId,
@@ -167,6 +177,7 @@ router.post(
       }));
       await prisma.note.createMany({ data: notesData });
 
+      // Create activities
       const activitiesData = templateActivities.map((a) => ({
         organizationId: sandboxOrg.id,
         userId: a.userId,
@@ -177,6 +188,7 @@ router.post(
       }));
       await prisma.activity.createMany({ data: activitiesData });
 
+      // Create clientRequests
       const requestsData = templateRequests.map((r) => ({
         organizationId: sandboxOrg.id,
         userId: r.userId,
@@ -191,6 +203,7 @@ router.post(
       }));
       await prisma.clientRequest.createMany({ data: requestsData });
 
+      // Create comments
       const commentsData = templateComments.map((c) => ({
         organizationId: sandboxOrg.id,
         userId: c.userId,
@@ -204,6 +217,7 @@ router.post(
       }));
       await prisma.comment.createMany({ data: commentsData });
 
+      // Create notifications
       const notificationsData = templateNotifications.map((n) => ({
         organizationId: sandboxOrg.id,
         userId: n.userId,
@@ -215,6 +229,7 @@ router.post(
       }));
       await prisma.notification.createMany({ data: notificationsData });
 
+      // Create automations
       const automationsData = templateAutomations.map((a) => ({
         organizationId: sandboxOrg.id,
         userId: a.userId,
@@ -227,6 +242,7 @@ router.post(
       }));
       await prisma.automationRule.createMany({ data: automationsData });
 
+      // Create memberships
       const membershipsData = templateMemberships.map((m) => ({
         organizationId: sandboxOrg.id,
         userId: m.userId,
@@ -275,6 +291,7 @@ router.get(
     }
 
     if (existing.expiresAt <= new Date()) {
+      // Expired - clean up
       await prisma.demoSandbox.delete({ where: { id: existing.id } });
       return res.json({ success: true, data: { exists: false, expired: true } });
     }
@@ -291,42 +308,18 @@ router.get(
   }),
 );
 
+// Cleanup endpoint (called by cron)
 router.delete(
   "/sandbox/cleanup",
   asyncHandler(async (req, res) => {
     const deleted = await prisma.demoSandbox.deleteMany({
       where: { expiresAt: { lt: new Date() } },
     });
+    // Also delete associated organizations marked as demo
     const demoOrgs = await prisma.organization.deleteMany({
       where: { isDemo: true, slug: { startsWith: "sandbox-" } },
     });
     return res.json({ success: true, data: { deletedSandboxes: deleted.count, deletedOrgs: demoOrgs.count } });
-  }),
-);
-
-// Test endpoint to check database connection and demo-org status
-router.get(
-  "/test-db",
-  asyncHandler(async (req, res) => {
-    try {
-      const templateOrg = await prisma.organization.findFirst({ where: { slug: "demo-org" } });
-      const orgCount = await prisma.organization.count();
-      const sandboxCount = await prisma.demoSandbox.count();
-      
-      return res.json({
-        success: true,
-        data: {
-          database: "connected",
-          templateOrg: templateOrg ? { id: templateOrg.id, slug: templateOrg.slug, isDemo: templateOrg.isDemo } : null,
-          orgCount,
-          sandboxCount,
-          timestamp: new Date().toISOString(),
-        },
-      });
-    } catch (e) {
-      console.error("[demo/test-db] error:", e);
-      return res.status(500).json({ success: false, message: "Database test failed", error: String(e) });
-    }
   }),
 );
 
