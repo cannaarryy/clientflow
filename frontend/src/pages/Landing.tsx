@@ -188,6 +188,11 @@ function Hero({ loggedIn, onTryDemo, sandboxLoading }: { loggedIn: boolean; onTr
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
           {t("hero.badge")}
         </span>
+        {/* Version badge */}
+        <span className="anim-fade-up inline-flex items-center gap-1.5 mt-2 rounded-full bg-[#7C6CFF]/15 px-2.5 py-1 text-[10px] font-mono font-semibold text-[#B9B0FF] ring-1 ring-[#7C6CFF]/30" style={{ animationDelay: "0.04s" }}>
+          <span className="h-1.5 w-1.5 rounded-full bg-[#7C6CFF]" />
+          v0.2 — Portal + Colaboración
+        </span>
         <h1 className="anim-fade-up mx-auto mt-6 max-w-3xl text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-6xl" style={{ animationDelay: "0.08s" }}>
           {t("hero.title1")}<br />{t("hero.title2")}
         </h1>
@@ -483,6 +488,10 @@ function Roadmap() {
     <section id="roadmap" className="scroll-mt-20 border-t border-[#141414] bg-[#080808]">
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
         <p data-reveal className="text-[11px] font-bold tracking-[0.18em] text-[#818181]">{t("rm.kicker")}</p>
+        <div data-reveal className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#7C6CFF]/15 px-3 py-1.5 text-[10px] font-mono font-semibold text-[#B9B0FF] ring-1 ring-[#7C6CFF]/30">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#7C6CFF]" />
+          v0.2 — AHORA
+        </div>
         <h2 data-reveal className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-4xl">{t("rm.title")}</h2>
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {ROADMAP.map((r) => (

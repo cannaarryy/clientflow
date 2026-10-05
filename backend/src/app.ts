@@ -84,7 +84,16 @@ export function createApp() {
   // Stricter rate limit for admin/sensitive endpoints
   const adminLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 30,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => req.ip ?? "unknown",
+  });
+
+  // Higher limit for read-heavy endpoints (dashboard, notifications polling)
+  const readLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 200,
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => req.ip ?? "unknown",
@@ -110,12 +119,12 @@ export function createApp() {
   app.use("/api/tasks", adminLimiter, csrfProtection, taskRoutes);
   app.use("/api/notes", adminLimiter, csrfProtection, noteRoutes);
   app.use("/api/activities", adminLimiter, csrfProtection, activityRoutes);
-  app.use("/api/dashboard", adminLimiter, csrfProtection, dashboardRoutes);
+  app.use("/api/dashboard", readLimiter, csrfProtection, dashboardRoutes);
   app.use("/api/search", adminLimiter, csrfProtection, searchRoutes);
   app.use("/api/user", adminLimiter, csrfProtection, userRoutes);
   app.use("/api/requests", adminLimiter, csrfProtection, requestRoutes);
   app.use("/api/comments", adminLimiter, csrfProtection, commentRoutes);
-  app.use("/api/notifications", adminLimiter, csrfProtection, notificationRoutes);
+  app.use("/api/notifications", readLimiter, csrfProtection, notificationRoutes);
   app.use("/api/automations", adminLimiter, csrfProtection, automationRoutes);
   app.use("/api/intelligence", adminLimiter, csrfProtection, intelligenceRoutes);
 
