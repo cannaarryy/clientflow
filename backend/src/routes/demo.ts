@@ -85,14 +85,20 @@ router.post(
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
     // Create new organization as copy
-    const sandboxOrg = await prisma.organization.create({
-      data: {
-        name: `Demo Sandbox ${crypto.randomBytes(4).toString("hex")}`,
-        slug: `sandbox-${crypto.randomBytes(8).toString("hex")}`,
-        isDemo: true,
-      },
-    });
-    console.log("[demo] sandboxOrg created:", sandboxOrg.id);
+    let sandboxOrg;
+    try {
+      sandboxOrg = await prisma.organization.create({
+        data: {
+          name: `Demo Sandbox ${crypto.randomBytes(4).toString("hex")}`,
+          slug: `sandbox-${crypto.randomBytes(8).toString("hex")}`,
+          isDemo: true,
+        },
+      });
+      console.log("[demo] sandboxOrg created:", sandboxOrg.id);
+    } catch (e) {
+      console.error("[demo] sandboxOrg create failed:", e);
+      return res.status(500).json({ success: false, message: "Sandbox org create failed", error: String(e) });
+    }
 
     // Create sandbox record
     let sandbox;
