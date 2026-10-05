@@ -25,7 +25,20 @@ router.post(
     await recordActivity(user.id, "user.registered", `Welcome, ${user.name}. Account created.`);
     const token = signToken(user.id, user.tokenVersion);
     res.cookie(AUTH_COOKIE, token, cookieOptions());
-    return res.status(201).json({ success: true, data: { user: safeUser({ id: user.id, email: user.email, name: user.name, tokenVersion: user.tokenVersion }) } });
+    
+    const membership = await prisma.membership.findFirst({
+      where: { userId: user.id },
+      select: { organizationId: true, role: true },
+      orderBy: { createdAt: "desc" },
+    });
+    
+    return res.status(201).json({ 
+      success: true, 
+      data: { 
+        user: safeUser({ id: user.id, email: user.email, name: user.name, tokenVersion: user.tokenVersion }),
+        membership 
+      } 
+    });
   }),
 );
 
@@ -40,7 +53,20 @@ router.post(
     if (!ok) return res.status(401).json({ success: false, message: "Invalid email or password" });
     const token = signToken(user.id, user.tokenVersion);
     res.cookie(AUTH_COOKIE, token, cookieOptions());
-    return res.json({ success: true, data: { user: safeUser({ id: user.id, email: user.email, name: user.name, tokenVersion: user.tokenVersion }) } });
+    
+    const membership = await prisma.membership.findFirst({
+      where: { userId: user.id },
+      select: { organizationId: true, role: true },
+      orderBy: { createdAt: "desc" },
+    });
+    
+    return res.json({ 
+      success: true, 
+      data: { 
+        user: safeUser({ id: user.id, email: user.email, name: user.name, tokenVersion: user.tokenVersion }),
+        membership 
+      } 
+    });
   }),
 );
 
@@ -58,10 +84,20 @@ router.get(
   "/me",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const { userId } = req as AuthRequest;
+    const { userId, organizationId } = req as AuthRequest;
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, name: true, createdAt: true } });
     if (!user) return res.status(401).json({ success: false, message: "Not authenticated" });
-    return res.json({ success: true, data: { user } });
+    
+    let membership = null;
+    if (organizationId) {
+      const mem = await prisma.membership.findUnique({
+        where: { userId_organizationId: { userId: userId!, organizationId: organizationId! } },
+        select: { organizationId: true, role: true },
+      });
+      if (mem) membership = { organizationId: mem.organizationId, role: mem.role as "OWNER" | "ADMIN" | "MEMBER" | "VIEWER" };
+    }
+    
+    return res.json({ success: true, data: { user, membership } });
   }),
 );
 
