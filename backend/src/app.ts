@@ -7,6 +7,8 @@ import rateLimit from "express-rate-limit";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { csrfProtection, csrfTokenMiddleware, CSRF_HEADER } from "./middleware/csrf.js";
+import { securityHeaders, securityHeadersDev } from "./middleware/securityHeaders.js";
+import { auditMiddleware } from "./middleware/audit.js";
 import authRoutes from "./routes/auth.js";
 import clientRoutes from "./routes/clients.js";
 import projectRoutes from "./routes/projects.js";
@@ -23,6 +25,7 @@ import automationRoutes from "./routes/automations.js";
 import intelligenceRoutes from "./routes/intelligence.js";
 import portalRoutes from "./routes/portal.js";
 import demoRoutes from "./routes/demo.js";
+import adminRoutes from "./routes/admin.js";
 
 export function createApp() {
   const app = express();
@@ -30,7 +33,19 @@ export function createApp() {
   // Behind Render/Cloudflare proxy — required for express-rate-limit + correct IPs
   app.set("trust proxy", 1);
 
-  app.use(helmet());
+  // Security headers (before helmet to avoid conflicts)
+  if (env.nodeEnv === "production") {
+    app.use(securityHeaders);
+  } else {
+    app.use(securityHeadersDev);
+  }
+
+  app.use(helmet({
+    contentSecurityPolicy: false, // We handle CSP manually
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
+  }));
   app.use(
     cors({
       origin: env.corsOrigin,
@@ -40,6 +55,9 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
   if (env.nodeEnv !== "test") app.use(morgan("dev"));
+
+  // Audit middleware (captures request/response for authenticated routes)
+  app.use(auditMiddleware);
 
   // CSRF token cookie for all requests
   app.use(csrfTokenMiddleware);
@@ -63,6 +81,15 @@ export function createApp() {
     skipSuccessfulRequests: true,
   });
 
+  // Stricter rate limit for admin/sensitive endpoints
+  const adminLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => req.ip ?? "unknown",
+  });
+
   app.get("/api/health", (_req, res) => res.json({ success: true, message: "ClientFlow API v0.2", time: new Date().toISOString() }));
 
   // Demo sandbox routes (no auth, no CSRF - for anonymous visitors)
@@ -78,19 +105,22 @@ export function createApp() {
   app.use("/api/auth", authLimiter, authRoutes);
   app.post("/api/auth/login", loginLimiter);
   app.use("/api/portal", portalRoutes);
-  app.use("/api/clients", csrfProtection, clientRoutes);
-  app.use("/api/projects", csrfProtection, projectRoutes);
-  app.use("/api/tasks", csrfProtection, taskRoutes);
-  app.use("/api/notes", csrfProtection, noteRoutes);
-  app.use("/api/activities", csrfProtection, activityRoutes);
-  app.use("/api/dashboard", csrfProtection, dashboardRoutes);
-  app.use("/api/search", csrfProtection, searchRoutes);
-  app.use("/api/user", csrfProtection, userRoutes);
-  app.use("/api/requests", csrfProtection, requestRoutes);
-  app.use("/api/comments", csrfProtection, commentRoutes);
-  app.use("/api/notifications", csrfProtection, notificationRoutes);
-  app.use("/api/automations", csrfProtection, automationRoutes);
-  app.use("/api/intelligence", csrfProtection, intelligenceRoutes);
+  app.use("/api/clients", adminLimiter, csrfProtection, clientRoutes);
+  app.use("/api/projects", adminLimiter, csrfProtection, projectRoutes);
+  app.use("/api/tasks", adminLimiter, csrfProtection, taskRoutes);
+  app.use("/api/notes", adminLimiter, csrfProtection, noteRoutes);
+  app.use("/api/activities", adminLimiter, csrfProtection, activityRoutes);
+  app.use("/api/dashboard", adminLimiter, csrfProtection, dashboardRoutes);
+  app.use("/api/search", adminLimiter, csrfProtection, searchRoutes);
+  app.use("/api/user", adminLimiter, csrfProtection, userRoutes);
+  app.use("/api/requests", adminLimiter, csrfProtection, requestRoutes);
+  app.use("/api/comments", adminLimiter, csrfProtection, commentRoutes);
+  app.use("/api/notifications", adminLimiter, csrfProtection, notificationRoutes);
+  app.use("/api/automations", adminLimiter, csrfProtection, automationRoutes);
+  app.use("/api/intelligence", adminLimiter, csrfProtection, intelligenceRoutes);
+
+  // Admin routes (audit logs, etc.)
+  app.use("/api/admin", adminLimiter, adminRoutes);
 
   // Expose CSRF header name for frontend
   app.get("/api/csrf-header", (_req, res) => res.json({ header: CSRF_HEADER }));

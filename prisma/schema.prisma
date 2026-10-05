@@ -69,6 +69,7 @@ model Organization {
   notifications Notification[]
   automations AutomationRule[]
   sandboxes   DemoSandbox[]
+  auditLogs   AuditLog[]
 
   @@index([slug])
 }
@@ -112,6 +113,7 @@ model User {
   comments      Comment[]
   notifications Notification[]
   automations   AutomationRule[]
+  auditLogs     AuditLog[]
 
   @@index([email])
   @@index([organizationId])
@@ -350,4 +352,29 @@ model DemoSandbox {
 
   @@index([expiresAt])
   @@index([visitorId])
+}
+
+// ── Audit Log (inmutable, append-only) ───────────────────────
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  requestId      String   @unique // correlation ID (e.g., request.id header)
+  action         String   // e.g., "client.created", "user.password_changed", "settings.updated"
+  resourceType   String   // e.g., "Client", "User", "Project", "Organization"
+  resourceId     String?
+  oldData        String?  // JSON string of previous state (null for creates)
+  newData        String?  // JSON string of new state (null for deletes)
+  ipAddress      String?
+  userAgent      String?
+  statusCode     Int
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
 }
