@@ -47,8 +47,14 @@ router.post(
     }
 
     // Fetch template data separately (avoid Prisma include typing issues)
-    const templateOrg = await prisma.organization.findFirst({ where: { slug: "demo-org" } });
-    console.log("[demo] templateOrg:", templateOrg ? templateOrg.id : "NOT FOUND");
+    let templateOrg;
+    try {
+      templateOrg = await prisma.organization.findFirst({ where: { slug: "demo-org" } });
+      console.log("[demo] templateOrg:", templateOrg ? templateOrg.id : "NOT FOUND");
+    } catch (e) {
+      console.error("[demo] templateOrg query failed:", e);
+      return res.status(500).json({ success: false, message: "Template org query failed", error: String(e) });
+    }
     if (!templateOrg) {
       return res.status(500).json({ success: false, message: "Demo template not found. Run seed first." });
     }
