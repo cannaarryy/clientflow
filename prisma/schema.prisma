@@ -68,6 +68,7 @@ model Organization {
   comments    Comment[]
   notifications Notification[]
   automations AutomationRule[]
+  sandboxes   DemoSandbox[]
 
   @@index([slug])
 }
@@ -336,4 +337,17 @@ model AutomationRule {
   @@index([userId])
   @@index([organizationId])
   @@index([userId, trigger])
+}
+
+// ── Demo Sandbox (ephemeral per-visitor) ─────────────────────
+model DemoSandbox {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  visitorId      String   @unique // hashed fingerprint / anonymous id
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([visitorId])
 }

@@ -22,6 +22,7 @@ import notificationRoutes from "./routes/notifications.js";
 import automationRoutes from "./routes/automations.js";
 import intelligenceRoutes from "./routes/intelligence.js";
 import portalRoutes from "./routes/portal.js";
+import demoRoutes from "./routes/demo.js";
 
 export function createApp() {
   const app = express();
@@ -63,6 +64,16 @@ export function createApp() {
   });
 
   app.get("/api/health", (_req, res) => res.json({ success: true, message: "ClientFlow API v0.2", time: new Date().toISOString() }));
+
+  // Demo sandbox routes (no auth, no CSRF - for anonymous visitors)
+  const demoLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => req.ip ?? "unknown",
+  });
+  app.use("/api/demo", demoLimiter, demoRoutes);
 
   app.use("/api/auth", authLimiter, authRoutes);
   app.post("/api/auth/login", loginLimiter);
