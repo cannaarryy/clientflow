@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
  *
  * Creates demo@clientflow.io / Demo1234! with:
  * 4 clients, 4 projects, ~12 tasks, notes + activity.
+ * Todo en español para la demo.
  */
 async function main() {
   const email = "demo@clientflow.io";
@@ -19,7 +20,7 @@ async function main() {
     where: { slug: "demo-org" },
     update: {},
     create: {
-      name: "Demo Organization",
+      name: "Organización Demo",
       slug: "demo-org",
       isDemo: true,
     },
@@ -57,93 +58,93 @@ async function main() {
     data: {
       userId: user.id, organizationId: org.id, name: "Sofia Bennett", company: "Nova Studio",
       email: "sofia@novastudio.co", phone: "+1 415 555 0132",
-      status: "ACTIVE", notes: "Brand + web client. Prefers async updates on Fridays.",
+      status: "ACTIVE", notes: "Cliente de marca + web. Prefiere actualizaciones asíncronas los viernes.",
     },
   });
-  await log("client.created", `Client created: ${nova.name} (Nova Studio)`, "client", nova.id);
+  await log("client.created", `Cliente creado: ${nova.name} (Nova Studio)`, "client", nova.id);
 
   const lumen = await prisma.client.create({
     data: {
       userId: user.id, organizationId: org.id, name: "Marcus Chen", company: "Lumen Analytics",
       email: "m.chen@lumenanalytics.io", phone: "+1 212 555 0188",
-      status: "ACTIVE", notes: "SaaS dashboard project. Wants weekly demos.",
+      status: "ACTIVE", notes: "Proyecto de dashboard SaaS. Quiere demos semanales.",
     },
   });
-  await log("client.created", `Client created: ${lumen.name} (Lumen Analytics)`, "client", lumen.id);
+  await log("client.created", `Cliente creado: ${lumen.name} (Lumen Analytics)`, "client", lumen.id);
 
   const atlas = await prisma.client.create({
     data: {
       userId: user.id, organizationId: org.id, name: "Elena Petrova", company: "Atlas Legal",
       email: "elena@atlaslegal.com", phone: "+34 600 123 456",
-      status: "LEAD", notes: "Discovery call done. Waiting for proposal approval.",
+      status: "LEAD", notes: "Llamada de descubrimiento hecha. Esperando aprobación de propuesta.",
     },
   });
-  await log("client.created", `Client created: ${atlas.name} (Atlas Legal)`, "client", atlas.id);
+  await log("client.created", `Cliente creado: ${atlas.name} (Atlas Legal)`, "client", atlas.id);
 
   const verde = await prisma.client.create({
     data: {
       userId: user.id, organizationId: org.id, name: "Diego Fuentes", company: "Verde Coffee Co.",
       email: "diego@verdecoffee.com", phone: "+52 55 1234 5678",
-      status: "INACTIVE", notes: "One-off menu redesign. Paused until Q4.",
+      status: "INACTIVE", notes: "Rediseño de menú único. Pausado hasta Q4.",
     },
   });
-  await log("client.created", `Client created: ${verde.name} (Verde Coffee Co.)`, "client", verde.id);
+  await log("client.created", `Cliente creado: ${verde.name} (Verde Coffee Co.)`, "client", verde.id);
 
   // ── Projects ─────────────────────────────────────────
   const p1 = await prisma.project.create({
     data: {
-      userId: user.id, organizationId: org.id, clientId: nova.id, name: "Nova Studio — Website Redesign",
-      description: "Full marketing site redesign: IA, UI kit, Webflow-ready handoff.",
+      userId: user.id, organizationId: org.id, clientId: nova.id, name: "Nova Studio — Rediseño Web",
+      description: "Rediseño completo del sitio marketing: IA, kit UI, entrega lista para Webflow.",
       status: "ACTIVE", priority: "HIGH",
       startDate: new Date("2026-08-10"), dueDate: new Date("2026-10-15"),
     },
   });
-  await log("project.created", `Project created: ${p1.name}`, "project", p1.id);
+  await log("project.created", `Proyecto creado: ${p1.name}`, "project", p1.id);
 
   const p2 = await prisma.project.create({
     data: {
-      userId: user.id, organizationId: org.id, clientId: lumen.id, name: "Lumen — Analytics Dashboard",
-      description: "Customer-facing analytics dashboard: charts, filters, exports.",
+      userId: user.id, organizationId: org.id, clientId: lumen.id, name: "Lumen — Dashboard de Analítica",
+      description: "Dashboard de analítica orientado al cliente: gráficos, filtros, exportaciones.",
       status: "ACTIVE", priority: "HIGH",
       startDate: new Date("2026-08-25"), dueDate: new Date("2026-11-01"),
     },
   });
-  await log("project.created", `Project created: ${p2.name}`, "project", p2.id);
+  await log("project.created", `Proyecto creado: ${p2.name}`, "project", p2.id);
 
   const p3 = await prisma.project.create({
     data: {
-      userId: user.id, organizationId: org.id, clientId: atlas.id, name: "Atlas — Proposal & Discovery",
-      description: "Scope the client portal: requirements, estimate, proposal doc.",
+      userId: user.id, organizationId: org.id, clientId: atlas.id, name: "Atlas — Propuesta y Descubrimiento",
+      description: "Definir el portal de cliente: requerimientos, estimación, documento de propuesta.",
       status: "PLANNING", priority: "MEDIUM",
       startDate: new Date("2026-09-05"), dueDate: new Date("2026-09-30"),
     },
   });
-  await log("project.created", `Project created: ${p3.name}`, "project", p3.id);
+  await log("project.created", `Proyecto creado: ${p3.name}`, "project", p3.id);
 
   const p4 = await prisma.project.create({
     data: {
-      userId: user.id, organizationId: org.id, clientId: verde.id, name: "Verde — Menu Redesign",
-      description: "Print + digital menu refresh. On hold until Q4.",
+      userId: user.id, organizationId: org.id, clientId: verde.id, name: "Verde — Rediseño de Menú",
+      description: "Actualización de menú impreso + digital. En pausa hasta Q4.",
       status: "ON_HOLD", priority: "LOW",
       startDate: new Date("2026-06-01"), dueDate: new Date("2026-12-01"),
     },
   });
-  await log("project.created", `Project created: ${p4.name}`, "project", p4.id);
+  await log("project.created", `Proyecto creado: ${p4.name}`, "project", p4.id);
 
   // ── Tasks ────────────────────────────────────────────
   const tasks: Array<{ title: string; projectId?: string; clientId: string; status: "TODO" | "IN_PROGRESS" | "DONE"; priority: "LOW" | "MEDIUM" | "HIGH"; dueInDays: number; description?: string }> = [
-    { title: "Draft homepage wireframes", projectId: p1.id, clientId: nova.id, status: "DONE", priority: "HIGH", dueInDays: -6, description: "3 directions for hero + services." },
-    { title: "Design UI kit (dark)", projectId: p1.id, clientId: nova.id, status: "IN_PROGRESS", priority: "HIGH", dueInDays: 3 },
-    { title: "Copy review with Sofia", projectId: p1.id, clientId: nova.id, status: "TODO", priority: "MEDIUM", dueInDays: 6 },
-    { title: "API contract for metrics", projectId: p2.id, clientId: lumen.id, status: "DONE", priority: "HIGH", dueInDays: -4 },
-    { title: "Build chart components", projectId: p2.id, clientId: lumen.id, status: "IN_PROGRESS", priority: "HIGH", dueInDays: 4 },
-    { title: "CSV export feature", projectId: p2.id, clientId: lumen.id, status: "TODO", priority: "MEDIUM", dueInDays: 9 },
-    { title: "Write proposal doc", projectId: p3.id, clientId: atlas.id, status: "IN_PROGRESS", priority: "MEDIUM", dueInDays: 2 },
-    { title: "Estimate portal phases", projectId: p3.id, clientId: atlas.id, status: "TODO", priority: "MEDIUM", dueInDays: 5 },
-    { title: "Follow up on approval", projectId: undefined, clientId: atlas.id, status: "TODO", priority: "HIGH", dueInDays: 1, description: "Ping Elena if no reply by Thursday." },
-    { title: "Archive Verde assets", projectId: p4.id, clientId: verde.id, status: "DONE", priority: "LOW", dueInDays: -20 },
-    { title: "Send Friday update to Sofia", projectId: undefined, clientId: nova.id, status: "TODO", priority: "MEDIUM", dueInDays: 0 },
-    { title: "Prep Lumen demo", projectId: p2.id, clientId: lumen.id, status: "TODO", priority: "HIGH", dueInDays: 2 },
+    { title: "Bocetos de wireframes de homepage", projectId: p1.id, clientId: nova.id, status: "DONE", priority: "HIGH", dueInDays: -6, description: "3 direcciones para hero + servicios." },
+    { title: "Diseñar kit UI (modo oscuro)", projectId: p1.id, clientId: nova.id, status: "IN_PROGRESS", priority: "HIGH", dueInDays: 3 },
+    { title: "Revisión de copy con Sofia", projectId: p1.id, clientId: nova.id, status: "TODO", priority: "MEDIUM", dueInDays: 6 },
+    { title: "Contrato de API para métricas", projectId: p2.id, clientId: lumen.id, status: "DONE", priority: "HIGH", dueInDays: -4 },
+    { title: "Construir componentes de gráficos", projectId: p2.id, clientId: lumen.id, status: "IN_PROGRESS", priority: "HIGH", dueInDays: 4 },
+    { title: "Función de exportación CSV", projectId: p2.id, clientId: lumen.id, status: "TODO", priority: "MEDIUM", dueInDays: 9 },
+    { title: "Redactar documento de propuesta", projectId: p3.id, clientId: atlas.id, status: "IN_PROGRESS", priority: "MEDIUM", dueInDays: 2 },
+    { title: "Estimar fases del portal", projectId: p3.id, clientId: atlas.id, status: "TODO", priority: "MEDIUM", dueInDays: 5 },
+    { title: "Dar seguimiento a aprobación", projectId: undefined, clientId: atlas.id, status: "TODO", priority: "HIGH", dueInDays: 1, description: "Contactar a Elena si no hay respuesta para el jueves." },
+    { title: "Archivar assets de Verde", projectId: p4.id, clientId: verde.id, status: "DONE", priority: "LOW", dueInDays: -20 },
+    { title: "Enviar actualización del viernes a Sofia", projectId: undefined, clientId: nova.id, status: "TODO", priority: "MEDIUM", dueInDays: 0 },
+    { title: "Preparar demo de Lumen", projectId: p2.id, clientId: lumen.id, status: "TODO", priority: "HIGH", dueInDays: 2 },
   ];
 
   for (const t of tasks) {
@@ -156,22 +157,22 @@ async function main() {
         projectId: t.projectId, clientId: t.clientId,
       },
     });
-    if (t.status === "DONE") await log("task.completed", `Task completed: ${t.title}`, "task", created.id);
-    else await log("task.created", `Task created: ${t.title}`, "task", created.id);
+    if (t.status === "DONE") await log("task.completed", `Tarea completada: ${t.title}`, "task", created.id);
+    else await log("task.created", `Tarea creada: ${t.title}`, "task", created.id);
   }
 
   // ── Notes ────────────────────────────────────────────
   await prisma.note.create({
-    data: { userId: user.id, organizationId: org.id, clientId: nova.id, projectId: p1.id, title: "Kickoff takeaways", content: "Sofia wants a calm, premium feel. Avoid gradients. Keep the existing logo. Decision maker: Sofia + Leo (CTO).", visibility: "SHARED" },
+    data: { userId: user.id, organizationId: org.id, clientId: nova.id, projectId: p1.id, title: "Conclusiones del kickoff", content: "Sofia quiere una sensación calmada y premium. Evitar gradientes. Mantener el logo existente. Decisores: Sofia + Leo (CTO).", visibility: "SHARED" },
   });
   await prisma.note.create({
-    data: { userId: user.id, organizationId: org.id, clientId: lumen.id, projectId: p2.id, title: "Demo notes", content: "Marcus loved the filter bar. Asked for CSV export + saved views. Next demo: Friday 11:00." },
+    data: { userId: user.id, organizationId: org.id, clientId: lumen.id, projectId: p2.id, title: "Notas de la demo", content: "A Marcus le encantó la barra de filtros. Pidió exportación CSV + vistas guardadas. Próxima demo: viernes 11:00." },
   });
   await prisma.note.create({
-    data: { userId: user.id, organizationId: org.id, clientId: atlas.id, title: "Discovery call", content: "Elena needs a client portal for case tracking. Budget approved for phase 1. Send proposal before month-end." },
+    data: { userId: user.id, organizationId: org.id, clientId: atlas.id, title: "Llamada de descubrimiento", content: "Elena necesita un portal de cliente para seguimiento de casos. Presupuesto aprobado para fase 1. Enviar propuesta antes de fin de mes." },
   });
-  await prisma.activity.create({ data: { userId: user.id, organizationId: org.id, type: "note.added", message: "Note added: Kickoff takeaways" } });
-  await prisma.activity.create({ data: { userId: user.id, organizationId: org.id, type: "note.added", message: "Note added: Demo notes" } });
+  await prisma.activity.create({ data: { userId: user.id, organizationId: org.id, type: "note.added", message: "Nota añadida: Conclusiones del kickoff" } });
+  await prisma.activity.create({ data: { userId: user.id, organizationId: org.id, type: "note.added", message: "Nota añadida: Notas de la demo" } });
 
   // ── v0.2 collaboration demo ──────────────────────────
   // Portal enabled for Nova Studio with a FIXED demo token (DEMO ONLY —
@@ -190,20 +191,20 @@ async function main() {
   if (sharedTask) await prisma.task.update({ where: { id: sharedTask.id }, data: { isShared: true } });
 
   const req1 = await prisma.clientRequest.create({
-    data: { userId: user.id, organizationId: org.id, clientId: nova.id, projectId: p1.id, title: "Homepage hero spacing", description: "Increase hero padding and update the CTA copy before Friday.", priority: "MEDIUM", status: "OPEN", createdBy: "CLIENT" },
+    data: { userId: user.id, organizationId: org.id, clientId: nova.id, projectId: p1.id, title: "Espaciado del hero en homepage", description: "Aumentar padding del hero y actualizar el copy del CTA antes del viernes.", priority: "MEDIUM", status: "OPEN", createdBy: "CLIENT" },
   });
-  await prisma.activity.create({ data: { userId: user.id, organizationId: org.id, type: "request.created", message: `New request from Sofia Bennett: ${req1.title}`, entityType: "request", entityId: req1.id } });
-  await prisma.notification.create({ data: { userId: user.id, organizationId: org.id, type: "request.created", message: `New request from Sofia Bennett: ${req1.title}`, entityType: "request", entityId: req1.id } });
+  await prisma.activity.create({ data: { userId: user.id, organizationId: org.id, type: "request.created", message: `Nueva solicitud de Sofia Bennett: ${req1.title}`, entityType: "request", entityId: req1.id } });
+  await prisma.notification.create({ data: { userId: user.id, organizationId: org.id, type: "request.created", message: `Nueva solicitud de Sofia Bennett: ${req1.title}`, entityType: "request", entityId: req1.id } });
 
   await prisma.comment.create({
-    data: { userId: user.id, organizationId: org.id, projectId: p1.id, authorName: "Alex Rivera", authorRole: "PRO", visibility: "SHARED", content: "First homepage direction is ready — Sofia, take a look when you can." },
+    data: { userId: user.id, organizationId: org.id, projectId: p1.id, authorName: "Alex Rivera", authorRole: "PRO", visibility: "SHARED", content: "Primera dirección de homepage lista — Sofia, échale un vistazo cuando puedas." },
   });
   await prisma.comment.create({
-    data: { userId: user.id, organizationId: org.id, projectId: p1.id, authorName: "Sofia Bennett", authorRole: "CLIENT", visibility: "SHARED", content: "Love direction 2! Can we try it with the darker background?" },
+    data: { userId: user.id, organizationId: org.id, projectId: p1.id, authorName: "Sofia Bennett", authorRole: "CLIENT", visibility: "SHARED", content: "¡Me encanta la dirección 2! ¿Podemos probarla con el fondo más oscuro?" },
   });
 
   await prisma.automationRule.create({
-    data: { userId: user.id, organizationId: org.id, name: "Delivery review on completion", trigger: "project.completed", action: "create_task", config: JSON.stringify({ title: "Send delivery review & ask for testimonial", priority: "MEDIUM" }), enabled: true },
+    data: { userId: user.id, organizationId: org.id, name: "Revisión de entrega al completar", trigger: "project.completed", action: "create_task", config: JSON.stringify({ title: "Enviar revisión de entrega y pedir testimonio", priority: "MEDIUM" }), enabled: true },
   });
 
   console.log(`Seed complete. Demo user: ${email} / Demo1234!`);

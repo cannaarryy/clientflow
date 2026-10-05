@@ -1,23 +1,26 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Suspense, lazy } from "react";
 import { AuthProvider, useAuth } from "./hooks/AuthContext.js";
 import { ToastProvider } from "./hooks/Toast.js";
 import { LanguageProvider, useI18n } from "./i18n/LanguageProvider.js";
 import { AppLayout } from "./layouts/AppLayout.js";
 import { LandingPage } from "./pages/Landing.js";
 import { LoginPage, RegisterPage } from "./pages/Auth.js";
-import { DashboardPage } from "./pages/Dashboard.js";
-import { ClientsPage } from "./pages/Clients.js";
-import { ClientDetailPage } from "./pages/ClientDetail.js";
-import { ProjectsPage } from "./pages/Projects.js";
-import { ProjectDetailPage } from "./pages/ProjectDetail.js";
-import { TasksPage } from "./pages/Tasks.js";
-import { NotesPage } from "./pages/Notes.js";
-import { RequestsPage } from "./pages/Requests.js";
-import { AutomationsPage } from "./pages/Automations.js";
 import { PortalPage } from "./pages/Portal.js";
-import { ActivityPage } from "./pages/Activity.js";
-import { SettingsPage } from "./pages/Settings.js";
 import { NotFoundPage } from "./pages/NotFound.js";
+
+// Lazy-load app pages for code splitting
+const DashboardPage = lazy(() => import("./pages/Dashboard.js").then(m => ({ default: m.DashboardPage })));
+const ClientsPage = lazy(() => import("./pages/Clients.js").then(m => ({ default: m.ClientsPage })));
+const ClientDetailPage = lazy(() => import("./pages/ClientDetail.js").then(m => ({ default: m.ClientDetailPage })));
+const ProjectsPage = lazy(() => import("./pages/Projects.js").then(m => ({ default: m.ProjectsPage })));
+const ProjectDetailPage = lazy(() => import("./pages/ProjectDetail.js").then(m => ({ default: m.ProjectDetailPage })));
+const TasksPage = lazy(() => import("./pages/Tasks.js").then(m => ({ default: m.TasksPage })));
+const NotesPage = lazy(() => import("./pages/Notes.js").then(m => ({ default: m.NotesPage })));
+const RequestsPage = lazy(() => import("./pages/Requests.js").then(m => ({ default: m.RequestsPage })));
+const AutomationsPage = lazy(() => import("./pages/Automations.js").then(m => ({ default: m.AutomationsPage })));
+const ActivityPage = lazy(() => import("./pages/Activity.js").then(m => ({ default: m.ActivityPage })));
+const SettingsPage = lazy(() => import("./pages/Settings.js").then(m => ({ default: m.SettingsPage })));
 
 function PublicOnly({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -45,6 +48,14 @@ function BootSplash() {
   );
 }
 
+function PageWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<BootSplash />}>
+      {children}
+    </Suspense>
+  );
+}
+
 export function App() {
   return (
     <LanguageProvider>
@@ -61,17 +72,17 @@ export function App() {
 
               {/* Application */}
               <Route path="/app" element={<Private><AppLayout /></Private>}>
-                <Route index element={<DashboardPage />} />
-                <Route path="clients" element={<ClientsPage />} />
-                <Route path="clients/:id" element={<ClientDetailPage />} />
-                <Route path="projects" element={<ProjectsPage />} />
-                <Route path="projects/:id" element={<ProjectDetailPage />} />
-              <Route path="tasks" element={<TasksPage />} />
-              <Route path="requests" element={<RequestsPage />} />
-              <Route path="automations" element={<AutomationsPage />} />
-              <Route path="notes" element={<NotesPage />} />
-                <Route path="activity" element={<ActivityPage />} />
-                <Route path="settings" element={<SettingsPage />} />
+                <Route index element={<PageWrapper><DashboardPage /></PageWrapper>} />
+                <Route path="clients" element={<PageWrapper><ClientsPage /></PageWrapper>} />
+                <Route path="clients/:id" element={<PageWrapper><ClientDetailPage /></PageWrapper>} />
+                <Route path="projects" element={<PageWrapper><ProjectsPage /></PageWrapper>} />
+                <Route path="projects/:id" element={<PageWrapper><ProjectDetailPage /></PageWrapper>} />
+                <Route path="tasks" element={<PageWrapper><TasksPage /></PageWrapper>} />
+                <Route path="requests" element={<PageWrapper><RequestsPage /></PageWrapper>} />
+                <Route path="automations" element={<PageWrapper><AutomationsPage /></PageWrapper>} />
+                <Route path="notes" element={<PageWrapper><NotesPage /></PageWrapper>} />
+                <Route path="activity" element={<PageWrapper><ActivityPage /></PageWrapper>} />
+                <Route path="settings" element={<PageWrapper><SettingsPage /></PageWrapper>} />
               </Route>
 
               <Route path="*" element={<NotFoundPage />} />
