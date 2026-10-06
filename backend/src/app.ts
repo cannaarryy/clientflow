@@ -26,6 +26,7 @@ import intelligenceRoutes from "./routes/intelligence.js";
 import portalRoutes from "./routes/portal.js";
 import demoRoutes from "./routes/demo.js";
 import adminRoutes from "./routes/admin.js";
+import orgRoutes from "./routes/org.js";
 
 export function createApp() {
   const app = express();
@@ -130,6 +131,7 @@ export function createApp() {
 
   // Admin routes (audit logs, etc.)
   app.use("/api/admin", adminLimiter, adminRoutes);
+  app.use("/api/org", adminLimiter, csrfProtection, orgRoutes);
 
   // Expose CSRF header name for frontend
   app.get("/api/csrf-header", (_req, res) => res.json({ header: CSRF_HEADER }));

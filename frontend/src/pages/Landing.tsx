@@ -2,22 +2,30 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Logo, StatusBadge } from "../components/ui.js";
 import { ProductPreview } from "../components/ProductPreview.js";
+import { V02Band } from "../components/V02Band.js";
 import { useAuth } from "../hooks/AuthContext.js";
 import { useI18n, LangSwitcher } from "../i18n/LanguageProvider.js";
-import { api } from "../services/api.js";
+import { useToast, errorMessage } from "../hooks/Toast.js";
 
 export function LandingPage() {
   const { user } = useAuth();
+  const { t } = useI18n();
+  const { push } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const [sandboxLoading, setSandboxLoading] = useState(false);
 
   const launchSandbox = async () => {
     setSandboxLoading(true);
     try {
-      let visitorId = localStorage.getItem("visitorId");
-      if (!visitorId) {
-        visitorId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
-        localStorage.setItem("visitorId", visitorId);
+      let visitorId = null;
+      try {
+        visitorId = localStorage.getItem("visitorId");
+        if (!visitorId) {
+          visitorId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+          localStorage.setItem("visitorId", visitorId);
+        }
+      } catch {
+        visitorId = `${Date.now()}-${Math.random()}`;
       }
       const BASE = import.meta.env.VITE_API_URL ?? "";
       const res = await fetch(`${BASE}/api/demo/sandbox`, {
@@ -29,14 +37,17 @@ export function LandingPage() {
         },
         body: JSON.stringify({}),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok || json?.success === false) throw new Error(json?.message ?? "Failed");
-      localStorage.setItem("sandboxToken", json.data.token);
-      localStorage.setItem("sandboxOrgId", json.data.organization.id);
+      try {
+        localStorage.setItem("sandboxToken", json.data.token);
+        localStorage.setItem("sandboxOrgId", json.data.organization.id);
+      } catch {
+        /* storage unavailable — continue anyway */
+      }
       window.location.href = "/app";
     } catch (e) {
-      console.error("Failed to launch sandbox:", e);
-      alert("No se pudo crear la demo. Inténtalo de nuevo.");
+      push(errorMessage(e, t("demo.createError")), "error");
     } finally {
       setSandboxLoading(false);
     }
@@ -73,6 +84,7 @@ export function LandingPage() {
         <Features />
         <HowItWorks />
         <InteractiveDemo />
+        <V02Band />
         <UseCases />
         <Technology />
         <Roadmap />
@@ -209,7 +221,7 @@ function Hero({ loggedIn, onTryDemo, sandboxLoading }: { loggedIn: boolean; onTr
             {loggedIn ? t("hero.ctaOpen") : t("hero.ctaStart")}
           </Link>
           <button onClick={onTryDemo} disabled={sandboxLoading} className="btn-ghost w-full !px-7 !py-3 !text-[15px] sm:w-auto">
-            {sandboxLoading ? "Creando demo..." : t("hero.ctaDemo")}
+            {sandboxLoading ? t("demo.creating") : t("hero.ctaDemo")}
           </button>
         </div>
         <p className="anim-fade-up mt-4 font-mono text-[11px] text-[#6b6b6b]" style={{ animationDelay: "0.32s" }}>{t("hero.mono")}</p>

@@ -4,6 +4,7 @@ import type { Activity } from "../types/index.js";
 import { useI18n } from "../i18n/LanguageProvider.js";
 import { useToast, errorMessage } from "../hooks/Toast.js";
 import { PageHeader, EmptyState, SkeletonList } from "../components/ui.js";
+import { appLocale } from "../utils/format.js";
 
 const ICONS: Record<string, string> = {
   "client.created": "＋",
@@ -37,7 +38,7 @@ export function ActivityPage() {
 
   const groups = new Map<string, Activity[]>();
   for (const a of items) {
-    const day = new Date(a.createdAt).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+    const day = new Date(a.createdAt).toLocaleDateString(appLocale(), { weekday: "long", month: "long", day: "numeric" });
     if (!groups.has(day)) groups.set(day, []);
     groups.get(day)!.push(a);
   }
@@ -60,7 +61,7 @@ export function ActivityPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-[#F5F5F5]">{activityMessage(a.type, a.message)}</p>
-                      <p className="text-[11px] text-[#555]" title={formatDateTime(a.createdAt)}>{timeAgo(a.createdAt)} · {a.type}</p>
+                      <p className="text-[11px] text-[#555]" title={formatDateTime(a.createdAt)}>{timeAgo(a.createdAt)}</p>
                     </div>
                   </div>
                 ))}

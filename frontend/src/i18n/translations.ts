@@ -31,7 +31,7 @@ export const MSG: Record<string, Entry> = {
   "hero.ctaStart": { en: "Get started", es: "Empezar" },
   "hero.ctaDemo": { en: "View demo", es: "Ver demo" },
   "hero.ctaOpen": { en: "Open your workspace →", es: "Abrir tu espacio →" },
-  "hero.mono": { en: "v0.1 MVP · Free for early users · No credit card", es: "MVP v0.1 · Gratis para los primeros usuarios · Sin tarjeta" },
+  "hero.mono": { en: "v0.2 · Portal + collaboration · Free for early users · No credit card", es: "v0.2 · Portal + colaboración · Gratis para los primeros usuarios · Sin tarjeta" },
 
   // Product preview
   "preview.live": { en: "● LIVE PREVIEW", es: "● VISTA PREVIA EN DIRECTO" },
@@ -749,7 +749,8 @@ export const MSG: Record<string, Entry> = {
   "pal.cmdToggleLang": { en: "Toggle language (ES/EN)", es: "Cambiar idioma (ES/EN)" },
   "pal.placeholder2": { en: "Search or type a command…", es: "Busca o escribe un comando…" },
 
-  // Landing v0.2 (demo section)  "demo.kicker": { en: "SEE IT IN ACTION", es: "MÍRALO EN ACCIÓN" },
+  // Landing v0.2 (demo section)
+  "demo.kicker": { en: "SEE IT IN ACTION", es: "MÍRALO EN ACCIÓN" },
   "demo.title": { en: "Try the flow — right here.", es: "Prueba el flujo — aquí mismo." },
   "demo.sub": { en: "A live, sandboxed walkthrough with demo data. Nothing here touches a real workspace — create an account to get your own.", es: "Un recorrido interactivo con datos de demostración. Nada de esto toca un espacio real — crea una cuenta para tener el tuyo." },
   "demo.step1": { en: "Pick a client", es: "Elige un cliente" },
@@ -769,4 +770,65 @@ export const MSG: Record<string, Entry> = {
   "fx.tagI18n": { en: "ES / EN", es: "ES / EN" },
   "fx.i18n": { en: "Fully bilingual", es: "Totalmente bilingüe" },
   "fx.i18nBody": { en: "Every screen, error and empty state in Spanish and English — wired through a real i18n system.", es: "Cada pantalla, error y estado vacío en español e inglés — con un sistema i18n real." },
+
+  // Demo sandbox
+  "demo.creating": { en: "Creating demo…", es: "Creando demo…" },
+  "demo.createError": { en: "Could not create the demo. Please try again.", es: "No se pudo crear la demo. Inténtalo de nuevo." },
+  "demo.expiresIn": { en: "Demo expires {date}", es: "La demo expira {date}" },
+
+  // App nav (v0.2)
+  "app.team": { en: "Team", es: "Equipo" },
+  "app.audit": { en: "Audit log", es: "Auditoría" },
+
+  // Roles
+  "role.OWNER": { en: "Owner", es: "Propietario" },
+  "role.ADMIN": { en: "Admin", es: "Administrador" },
+  "role.MEMBER": { en: "Member", es: "Miembro" },
+  "role.VIEWER": { en: "Viewer", es: "Lector" },
+
+  // Team
+  "team.title": { en: "Team", es: "Equipo" },
+  "team.sub": { en: "Who can access this workspace and what they can do.", es: "Quién puede acceder a este espacio y qué puede hacer." },
+  "team.you": { en: "you", es: "tú" },
+  "team.roleLabel": { en: "Role", es: "Rol" },
+  "team.memberSince": { en: "Member since {date}", es: "Miembro desde {date}" },
+  "team.changeRole": { en: "Change role", es: "Cambiar rol" },
+  "team.remove": { en: "Remove", es: "Quitar" },
+  "team.removeConfirm": { en: "Remove {name} from the organization?", es: "¿Quitar a {name} de la organización?" },
+  "team.updated": { en: "Role updated", es: "Rol actualizado" },
+  "team.removed": { en: "Member removed", es: "Miembro eliminado" },
+  "team.loadError": { en: "Could not load team", es: "No se pudo cargar el equipo" },
+  "team.saveError": { en: "Could not update member", es: "No se pudo actualizar el miembro" },
+  "team.lastOwner": { en: "The organization needs at least one owner.", es: "La organización necesita al menos un propietario." },
+  "team.cannotSelf": { en: "You cannot change your own role.", es: "No puedes cambiar tu propio rol." },
+
+  // Audit log
+  "audit.title": { en: "Audit log", es: "Auditoría" },
+  "audit.sub": { en: "Immutable trail of sensitive actions in this workspace.", es: "Registro inmutable de acciones sensibles en este espacio." },
+  "audit.action": { en: "Action", es: "Acción" },
+  "audit.resource": { en: "Resource", es: "Recurso" },
+  "audit.user": { en: "User", es: "Usuario" },
+  "audit.date": { en: "Date", es: "Fecha" },
+  "audit.empty": { en: "No audit entries yet.", es: "Aún no hay registros." },
+  "audit.emptyHint": { en: "Sensitive actions will appear here with who did what and when.", es: "Las acciones sensibles aparecerán aquí con quién hizo qué y cuándo." },
+  "audit.loadError": { en: "Could not load audit log", es: "No se pudo cargar la auditoría" },
+  "audit.filterAction": { en: "Filter by action…", es: "Filtrar por acción…" },
+  "audit.showData": { en: "Show change detail", es: "Ver detalle del cambio" },
+  "audit.noData": { en: "No detail recorded", es: "Sin detalle registrado" },
+
+  // v0.2 highlights band
+  "v02.kicker": { en: "NEW IN v0.2", es: "NOVEDADES v0.2" },
+  "v02.title": { en: "Portal + collaboration, live now.", es: "Portal + colaboración, ya disponible." },
+  "v02.sub": { en: "Everything in this release is already running in the demo above — no slides, no promises.", es: "Todo lo de esta versión ya funciona en la demo — sin diapositivas ni promesas." },
+  "v02.portal": { en: "Client Portal", es: "Portal del cliente" },
+  "v02.portalBody": { en: "Magic-link space per client with shared projects, progress and discussion.", es: "Espacio con enlace mágico por cliente: proyectos, progreso y conversación." },
+  "v02.requests": { en: "Requests", es: "Solicitudes" },
+  "v02.requestsBody": { en: "Clients ask, you convert to tasks in one click.", es: "Los clientes piden, tú conviertes en tareas con un clic." },
+  "v02.auto": { en: "Automations", es: "Automatizaciones" },
+  "v02.autoBody": { en: "WHEN → THEN rules on real events.", es: "Reglas CUANDO → ENTONCES sobre eventos reales." },
+  "v02.notif": { en: "Notifications", es: "Notificaciones" },
+  "v02.notifBody": { en: "Never miss a client request or comment.", es: "No te pierdas ninguna solicitud ni comentario." },
+  "v02.i18n": { en: "Fully bilingual", es: "Totalmente bilingüe" },
+  "v02.i18nBody": { en: "Every screen in Spanish and English.", es: "Cada pantalla en español e inglés." },
+  "v02.cta": { en: "Try it in the live demo", es: "Pruébalo en la demo en vivo" },
 };
