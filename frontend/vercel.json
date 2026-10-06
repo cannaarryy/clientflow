@@ -5,6 +5,10 @@
   "installCommand": "npm install",
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "https://clientflow-yrul.onrender.com/api/$1"
+    },
+    {
       "source": "/app(.*)?",
       "destination": "/index.html"
     },
