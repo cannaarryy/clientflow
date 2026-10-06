@@ -8,7 +8,7 @@ const router = Router();
 // POST /api/demo/sandbox
 router.post(
   "/sandbox",
-  asyncHandler(async function sandboxPost(req: Request, res: Response) {
+  asyncHandler(async (req, res) => {
     console.log("[demo] POST /sandbox - start", { ip: req.ip });
     const visitorFingerprint = (req.headers["x-visitor-id"] as string) || 
       (req.headers["x-forwarded-for"] as string) || 
@@ -21,14 +21,11 @@ router.post(
       include: { organization: true },
     });
 
-    if (existing && existing.expiresAt > new Date()) {
+    if (existing && existing.expiresAt > new Date() && existing.organization) {
       const org = existing.organization;
-      const membership = await prisma.membership.findFirst({
-        where: { organizationId: org.id, role: "OWNER" },
-        include: { user: { select: { id: true, email: true, name: true } } },
-      );
+      const membership = await prisma.membership.findFirst({ where: { organizationId: org.id, role: "OWNER" }, include: { user: { select: { id: true, email: true, name: true } } } });
 
-      await prisma.demoSandbox.update({
+      const updated = await prisma.demoSandbox.update({
         where: { id: existing.id },
         data: { expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000) },
       });
@@ -40,9 +37,19 @@ router.post(
           organization: { id: org.id, name: org.name, slug: org.slug },
           owner: membership?.user,
           token: crypto.randomBytes(32).toString("hex"),
-          expiresAt: existing.expiresAt,
+          expiresAt: updated.expiresAt,
         },
       });
+    }
+
+    // Stale row (expired or orphaned org) would collide on visitorId unique
+    // constraint — remove it so a fresh sandbox can be created.
+    if (existing) {
+      console.log("[demo] removing stale sandbox row:", existing.id);
+      await prisma.demoSandbox.delete({ where: { id: existing.id } }).catch(() => undefined);
+      if (existing.organizationId) {
+        await prisma.organization.deleteMany({ where: { id: existing.organizationId, slug: { startsWith: "sandbox-" } } }).catch(() => undefined);
+      }
     }
 
     let templateOrg;
@@ -234,10 +241,7 @@ router.post(
       }));
       await prisma.membership.createMany({ data: membershipsData });
 
-      const ownerMembership = await prisma.membership.findFirst({
-        where: { organizationId: sandboxOrg.id, role: "OWNER" },
-        include: { user: { select: { id: true, email: true, name: true } } },
-      );
+      const ownerMembership = await prisma.membership.findFirst({ where: { organizationId: sandboxOrg.id, role: "OWNER" }, include: { user: { select: { id: true, email: true, name: true } } } });
 
       console.log("[demo] returning response");
       return res.status(201).json({
@@ -252,6 +256,24 @@ router.post(
       });
     } catch (e) {
       console.error("[demo] sandbox creation failed:", e);
+      // Race: another request created the sandbox first — return it.
+      const code = (e as { code?: string })?.code;
+      if (code === "P2002") {
+        const raced = await prisma.demoSandbox.findUnique({ where: { visitorId }, include: { organization: true } });
+        if (raced && raced.organization) {
+          const membership = await prisma.membership.findFirst({ where: { organizationId: raced.organizationId, role: "OWNER" }, include: { user: { select: { id: true, email: true, name: true } } } });
+          return res.json({
+            success: true,
+            data: {
+              sandboxId: raced.id,
+              organization: { id: raced.organization.id, name: raced.organization.name, slug: raced.organization.slug },
+              owner: membership?.user,
+              token: crypto.randomBytes(32).toString("hex"),
+              expiresAt: raced.expiresAt,
+            },
+          });
+        }
+      }
       return res.status(500).json({ success: false, message: "Sandbox creation failed", error: String(e) });
     }
   }),
@@ -274,8 +296,8 @@ router.get(
       return res.json({ success: true, data: { exists: false } });
     }
 
-    if (existing.expiresAt <= new Date()) {
-      await prisma.demoSandbox.delete({ where: { id: existing.id } });
+    if (existing.expiresAt <= new Date() || !existing.organization) {
+      await prisma.demoSandbox.delete({ where: { id: existing.id } }).catch(() => undefined);
       return res.json({ success: true, data: { exists: false, expired: true } });
     }
 
@@ -301,32 +323,6 @@ router.delete(
       where: { isDemo: true, slug: { startsWith: "sandbox-" } },
     });
     return res.json({ success: true, data: { deletedSandboxes: deleted.count, deletedOrgs: demoOrgs.count } });
-  }),
-);
-
-// Test endpoint to check database connection and demo-org status
-router.get(
-  "/test-db",
-  asyncHandler(async (req, res) => {
-    try {
-      const templateOrg = await prisma.organization.findFirst({ where: { slug: "demo-org" } });
-      const orgCount = await prisma.organization.count();
-      const sandboxCount = await prisma.demoSandbox.count();
-      
-      return res.json({
-        success: true,
-        data: {
-          database: "connected",
-          templateOrg: templateOrg ? { id: templateOrg.id, slug: templateOrg.slug, isDemo: templateOrg.isDemo } : null,
-          orgCount,
-          sandboxCount,
-          timestamp: new Date().toISOString(),
-        },
-      });
-    } catch (e) {
-      console.error("[demo/test-db] error:", e);
-      return res.status(500).json({ success: false, message: "Database test failed", error: String(e) });
-    }
   }),
 );
 

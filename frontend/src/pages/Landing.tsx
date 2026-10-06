@@ -14,13 +14,18 @@ export function LandingPage() {
   const launchSandbox = async () => {
     setSandboxLoading(true);
     try {
+      let visitorId = localStorage.getItem("visitorId");
+      if (!visitorId) {
+        visitorId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+        localStorage.setItem("visitorId", visitorId);
+      }
       const BASE = import.meta.env.VITE_API_URL ?? "";
       const res = await fetch(`${BASE}/api/demo/sandbox`, {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "x-visitor-id": "landing-demo",
+          "x-visitor-id": visitorId,
         },
         body: JSON.stringify({}),
       });

@@ -10,19 +10,7 @@
       "destination": "https://clientflow-yrul.onrender.com/api/$1"
     },
     {
-      "source": "/demo",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/demo/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/app",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/app/",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
