@@ -16,6 +16,7 @@ router.post(
     const visitorId = crypto.createHash("sha256").update(visitorFingerprint).digest("hex").slice(0, 32);
     console.log("[demo] visitorId:", visitorId);
 
+    // Check if a valid sandbox already exists for this visitor
     const existing = await prisma.demoSandbox.findUnique({
       where: { visitorId },
       include: { organization: true },
