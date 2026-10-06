@@ -26,7 +26,8 @@ router.post(
       const org = existing.organization;
       const membership = await prisma.membership.findFirst({ where: { organizationId: org.id, role: "OWNER" }, include: { user: { select: { id: true, email: true, name: true } } } });
 
-      const updated = await prisma.demoSandbox.update({
+      // Extend expiration by 2 hours
+      await prisma.demoSandbox.update({
         where: { id: existing.id },
         data: { expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000) },
       });
@@ -38,13 +39,13 @@ router.post(
           organization: { id: org.id, name: org.name, slug: org.slug },
           owner: membership?.user,
           token: crypto.randomBytes(32).toString("hex"),
-          expiresAt: updated.expiresAt,
+          expiresAt: existing.expiresAt,
         },
       });
     }
 
-    // Stale row (expired or orphaned org) would collide on visitorId unique
-    // constraint — remove it so a fresh sandbox can be created.
+    // If existing sandbox exists but is expired or has no organization,
+    // remove it so a fresh sandbox can be created.
     if (existing) {
       console.log("[demo] removing stale sandbox row:", existing.id);
       await prisma.demoSandbox.delete({ where: { id: existing.id } }).catch(() => undefined);
@@ -273,6 +274,31 @@ router.post(
               expiresAt: raced.expiresAt,
             },
           });
+        }
+        // Raced sandbox exists but has no organization — delete it and create a fresh one
+        await prisma.demoSandbox.delete({ where: { id: raced.id } }).catch(() => undefined);
+        if (raced.organizationId) {
+          await prisma.organization.deleteMany({ where: { id: raced.organizationId, slug: { startsWith: "sandbox-" } } }).catch(() => undefined);
+        }
+      } else {
+        // Other errors — check if it's a organization creation conflict
+        const upperError = String(e).toUpperCase();
+        if (upperError.includes("UNIQUE_CONSTRAINT") || upperError.includes("DUPLICATE")) {
+          // Try to find and return existing sandbox
+          const existing = await prisma.demoSandbox.findUnique({ where: { visitorId }, include: { organization: true } });
+          if (existing && existing.organization) {
+            const membership = await prisma.membership.findFirst({ where: { organizationId: existing.organizationId, role: "OWNER" }, include: { user: { select: { id: true, email: true, name: true } } } });
+            return res.json({
+              success: true,
+              data: {
+                sandboxId: existing.id,
+                organization: { id: existing.organization.id, name: existing.organization.name, slug: existing.organization.slug },
+                owner: membership?.user,
+                token: crypto.randomBytes(32).toString("hex"),
+                expiresAt: existing.expiresAt,
+              },
+            });
+          }
         }
       }
       return res.status(500).json({ success: false, message: "Sandbox creation failed", error: String(e) });
